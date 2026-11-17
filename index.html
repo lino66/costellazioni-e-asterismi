@@ -2,13 +2,19 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000006">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
 <title>Costellazioni & Asterismi — Studio 3D</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #fff; }
-  #canvas-container { position: fixed; inset: 0; }
+  body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: #fff; }
+  #canvas-container { position: fixed; top: 0; left: 0; right: 0; bottom: 0; }
   #ui {
     position: fixed; top: 16px; left: 16px;
     background: rgba(10, 15, 35, 0.88);
@@ -102,34 +108,12 @@
   #split-divider { position: fixed; top: 0; bottom: 0; left: 50%; width: 2px; background: rgba(107, 143, 255, 0.4); z-index: 5; pointer-events: none; }
   #split-labels { position: fixed; bottom: 60px; left: 0; right: 0; display: flex; z-index: 6; pointer-events: none; }
   #split-labels div { flex: 1; text-align: center; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.75); letter-spacing: 1px; text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
- @media (max-width: 700px) {
-    #ui { width: calc(100% - 32px); font-size: 12px; }
-    #info-panel { width: calc(100% - 32px); top: auto; bottom: 16px; max-height: 45vh; }
-    .label { font-size: 14px; }
-    .label .dist { font-size: 11px; }
-    .label.inactive { font-size: 12px; }
-  }
 #size-block{display:block;margin:4px 0 10px;padding:8px 10px;background:rgba(107,143,255,.08);border:1px solid rgba(107,143,255,.25);border-radius:8px}
 #size-block .row{display:flex;justify-content:space-between;font-size:11.5px;color:#c8d5f0;margin-bottom:4px}
 #size-slider{width:100%;accent-color:#6b8fff;cursor:pointer}
 #ui-toggle{position:fixed;left:16px;bottom:14px;z-index:40;width:42px;height:42px;border-radius:50%;border:1px solid rgba(120,160,255,.4);background:rgba(10,15,35,.9);color:#fff;font-size:18px;cursor:pointer}
 #ui.ui-hidden{display:none}
 html{-webkit-tap-highlight-color:transparent}
-@media (max-width:700px){
-  #ui-toggle{top:12px;bottom:auto;left:12px}
-  #ui{top:64px !important;max-height:calc(100vh - 80px);max-height:calc(100dvh - 80px)}
-  #hint,.mode-btn[data-mode="split"]{display:none !important}
-  #tour-overlay{width:calc(100% - 24px);padding:12px 14px;bottom:56px}
-  #tour-text{font-size:13px}
-}
-@media (pointer:coarse){
-  #ui select,#ui button{padding:12px 10px}
-  #tour-dist-slider{height:8px !important}
-  #tour-dist-slider::-webkit-slider-thumb{width:26px !important;height:26px !important}
-  #tour-dist-slider::-moz-range-thumb{width:26px !important;height:26px !important}
-  #size-slider{height:30px}
-  #ui label{margin:10px 0}
-}
 .label.ref{color:#8fb4e8;font-size:10px;opacity:.85;white-space:nowrap}
 .label.ref-ecl{color:#ffbf66}
 
@@ -138,11 +122,151 @@ html{-webkit-tap-highlight-color:transparent}
 #tour-rhythm-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#ff8c3c;cursor:pointer;border:2px solid #fff}
 #tour-rhythm-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#ff8c3c;cursor:pointer;border:2px solid #fff}
 #tour-rhythm-slider:disabled,#tour-dist-slider:disabled,#size-slider:disabled{opacity:.4;cursor:not-allowed}
-@media (max-width:700px){
-  #tour-rhythm-slider{height:8px !important}
-  #tour-rhythm-slider::-webkit-slider-thumb{width:26px !important;height:26px !important}
-  #tour-rhythm-slider::-moz-range-thumb{width:26px !important;height:26px !important}
+
+/* ============================================================
+   RESPONSIVE — blocco unico
+   Breakpoint: tablet <=1024 · compatto <=900 o altezza <=500 (landscape telefono)
+               stretto <=700 (telefono portrait) · touch = pointer:coarse
+   JS equivalente: isCompact() / isNarrow()
+   ============================================================ */
+:root{--app-h:100vh;--sat:0px;--sar:0px;--sab:0px;--sal:0px;--m:16px;color-scheme:dark}
+@supports (padding:constant(safe-area-inset-top)){:root{--sat:constant(safe-area-inset-top);--sar:constant(safe-area-inset-right);--sab:constant(safe-area-inset-bottom);--sal:constant(safe-area-inset-left)}}
+@supports (padding:env(safe-area-inset-top)){:root{--sat:env(safe-area-inset-top);--sar:env(safe-area-inset-right);--sab:env(safe-area-inset-bottom);--sal:env(safe-area-inset-left)}}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior:none}
+body{position:fixed;top:0;left:0;right:0;bottom:0;overscroll-behavior:none;-webkit-font-smoothing:antialiased}
+#canvas-container canvas{display:block;touch-action:none;outline:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.label{-webkit-user-select:none;user-select:none}
+button,select,label,input,#layers-section h3{touch-action:manipulation}
+
+/* pannelli: dimensioni fluide + safe area + scroll contenuto */
+#ui,#info-panel,#tour-compass{scrollbar-width:thin;scrollbar-color:rgba(120,160,255,.4) transparent}
+#ui::-webkit-scrollbar,#info-panel::-webkit-scrollbar,#tour-compass::-webkit-scrollbar{width:8px;height:8px}
+#ui::-webkit-scrollbar-thumb,#info-panel::-webkit-scrollbar-thumb,#tour-compass::-webkit-scrollbar-thumb{background:rgba(120,160,255,.35);border-radius:4px}
+#ui,#info-panel{overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+#ui{
+  top:calc(var(--m) + var(--sat));left:calc(var(--m) + var(--sal));
+  width:min(340px,calc(100vw - 2 * var(--m) - var(--sal) - var(--sar)));
+  max-height:calc(var(--app-h) - 2 * var(--m) - var(--sat) - var(--sab) - 56px);
 }
+#info-panel{
+  top:calc(var(--m) + var(--sat));right:calc(var(--m) + var(--sar));
+  width:min(300px,calc(100vw - 2 * var(--m) - var(--sal) - var(--sar)));
+  max-height:calc(var(--app-h) - 2 * var(--m) - var(--sat) - var(--sab));
+}
+#ui-toggle{left:calc(var(--m) + var(--sal));bottom:calc(14px + var(--sab))}
+
+/* elementi centrati: width:max-content evita il restringimento al 50% dovuto a left:50% */
+#hint{bottom:calc(14px + var(--sab));width:max-content;max-width:calc(100vw - 32px)}
+#tour-overlay{bottom:calc(60px + var(--sab));width:max-content;max-width:min(560px,calc(100vw - 24px - var(--sal) - var(--sar)));-webkit-backdrop-filter:blur(12px)}
+#tour-compass{bottom:calc(18px + var(--sab));width:max-content;max-width:calc(100vw - 24px - var(--sal) - var(--sar));-webkit-backdrop-filter:blur(12px);-webkit-overflow-scrolling:touch}
+#info-panel{-webkit-backdrop-filter:blur(12px)}
+#split-labels{bottom:calc(60px + var(--sab))}
+
+/* browser senza backdrop-filter: sfondo piu' opaco */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  #ui,#info-panel,#tour-overlay,#tour-compass{background:rgba(10,15,35,.97)}
+}
+
+/* tablet */
+@media (max-width:1024px){
+  #ui{width:min(300px,calc(100vw - 2 * var(--m) - var(--sal) - var(--sar)))}
+  #info-panel{width:min(280px,calc(100vw - 2 * var(--m) - var(--sal) - var(--sar)))}
+}
+
+/* compatto: tablet portrait, telefoni (portrait e landscape) */
+@media (max-width:900px),(max-height:500px){
+  #ui-toggle{top:calc(12px + var(--sat));bottom:auto;left:calc(12px + var(--sal))}
+  #ui{
+    top:calc(64px + var(--sat));left:calc(12px + var(--sal));font-size:12px;
+    width:min(340px,calc(100vw - 24px - var(--sal) - var(--sar)));
+    max-height:calc(var(--app-h) - 76px - var(--sat) - var(--sab));
+  }
+  #info-panel{
+    top:calc(12px + var(--sat));right:calc(12px + var(--sar));width:min(300px,42vw);
+    max-height:calc(var(--app-h) - 24px - var(--sat) - var(--sab));
+  }
+  #hint{display:none !important}
+  #tour-overlay{padding:12px 16px}
+  #tour-text{font-size:13px}
+}
+
+/* stretto: telefono portrait -> pannello info come bottom sheet, niente confronto affiancato */
+@media (max-width:700px){
+  .mode-btn[data-mode="split"]{display:none !important}
+  #info-panel{
+    top:auto;bottom:calc(12px + var(--sab));left:calc(12px + var(--sal));right:calc(12px + var(--sar));width:auto;
+    max-height:calc(var(--app-h) * .45);max-height:45dvh;
+  }
+  #tour-overlay{bottom:calc(56px + var(--sab));padding:12px 14px}
+  .label{font-size:14px}
+  .label .dist{font-size:11px}
+  .label.inactive{font-size:12px}
+}
+/* landscape telefono: etichette leggibili ma non enormi */
+@media (max-height:500px) and (min-width:701px){
+  .label{font-size:12px}
+  .label .dist{font-size:10px}
+}
+
+/* touch: target >=44px, niente zoom automatico iOS sui select (font >=16px) */
+@media (pointer:coarse){
+  #ui select,#ui button{padding:12px 10px;min-height:44px}
+  #ui select{font-size:16px}
+  #ui .btn-row button{padding:12px 4px !important;min-height:44px}
+  #layers-reset{padding:10px 8px !important}
+  #ui label{margin:10px 0;font-size:13px}
+  #ui input[type="checkbox"]{width:20px;height:20px;flex-shrink:0}
+  .layer-item{padding:9px 6px}
+  .layer-item input[type="checkbox"]{width:20px;height:20px}
+  #info-close{width:36px;height:36px;font-size:15px;top:8px;right:8px}
+  #tour-cancel{padding:11px 20px;font-size:13px}
+  #ui-toggle{width:46px;height:46px}
+  #tour-dist-slider,#tour-rhythm-slider{height:8px}
+  #tour-dist-slider::-webkit-slider-thumb,#tour-rhythm-slider::-webkit-slider-thumb{width:26px;height:26px}
+  #tour-dist-slider::-moz-range-thumb,#tour-rhythm-slider::-moz-range-thumb{width:26px;height:26px}
+  #size-slider{height:30px}
+}
+/* niente hover "appiccicoso" su schermi touch */
+@media (hover:none){
+  #ui select:hover,#ui button:hover{background:rgba(255,255,255,.06)}
+  .layer-item:hover{background:transparent}
+}
+
+/* fallback flex-gap (Safari < 14.1): classe aggiunta da JS solo se il gap non funziona davvero */
+.no-flex-gap .btn-row button + button{margin-left:6px !important}
+.no-flex-gap #ui label input[type="checkbox"], .no-flex-gap .layer-item > :not(:last-child){margin-right:8px}
+.no-flex-gap #tour-compass .dot + .dot{margin-left:6px}
+.no-flex-gap #layers-section h3 .arrow{margin-left:8px}
+
+/* niente selezione testo / menu di pressione lunga sui controlli (iOS/Android) */
+#ui,#ui-toggle,#tour-overlay,#tour-compass,#hint,#split-labels{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#ui input[type="text"]{-webkit-user-select:text;user-select:text}
+
+/* telefoni molto piccoli (<=360px) */
+@media (max-width:360px){
+  #ui{padding:12px 12px}
+  #ui h1{font-size:14px}
+  .btn-row button{font-size:10px !important}
+  #tour-overlay{padding:10px 12px}
+  #tour-text{font-size:12.5px}
+}
+/* landscape molto basso (telefoni piccoli, iPhone SE orizzontale) */
+@media (max-height:420px){
+  #tour-overlay{bottom:calc(50px + var(--sab));padding:8px 12px}
+  #tour-text{font-size:12px;min-height:0}
+  #tour-cancel{padding:7px 14px;min-height:0}
+  #tour-compass{bottom:calc(10px + var(--sab));padding:6px 12px}
+  #split-labels{bottom:calc(50px + var(--sab))}
+}
+/* schermi grandi / 4K */
+@media (min-width:1800px) and (min-height:900px){
+  #ui{width:min(380px,calc(var(--app-h) * 0.9));font-size:14px}
+  #info-panel{width:340px;font-size:13.5px}
+  .label{font-size:12px}
+}
+#compat-msg{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:1000;background:#000006;color:#fff;align-items:center;justify-content:center;text-align:center;padding:24px;line-height:1.5}
+#compat-msg h2{font-size:20px;margin-bottom:10px}
+#compat-msg p{font-size:15px;color:#a8b8d8;max-width:420px}
 </style>
 </head>
 <body>
@@ -216,6 +340,31 @@ html{-webkit-tap-highlight-color:transparent}
 <div id="split-labels" class="hidden"><div>📸 VISTA DALLA TERRA</div><div>🌐 VISTA 3D REALE</div></div>
 <div id="hint">Clicca/tocca una stella per info · Trascina per ruotare · Rotella/pizzica per zoom</div>
 
+<div id="compat-msg"><div><h2>Browser non compatibile</h2><p>Questa app richiede un browser con supporto a WebGL e moduli JavaScript. Aggiorna Safari, Chrome, Firefox o Edge all'ultima versione.</p></div></div>
+<noscript><style>#compat-msg{display:flex}</style></noscript>
+<script>
+window.__showCompat = function (m) {
+  var e = document.getElementById('compat-msg'); if (!e) return;
+  if (m) e.querySelector('p').textContent = m;
+  e.style.display = 'flex';
+};
+window.addEventListener('load', function () {
+  setTimeout(function () { if (!window.__appStarted) window.__showCompat('Impossibile avviare l\'app. Controlla la connessione, aggiorna il browser o disattiva eventuali blocchi di contenuti.'); }, 10000);
+});
+</script>
+<script nomodule>
+/* Safari 10.1 esegue per errore anche gli script nomodule: mostra l'avviso solo se l'app non parte davvero */
+window.addEventListener('load',function(){setTimeout(function(){ if(!window.__appStarted) window.__showCompat(); },2500);});
+</script>
+<script>
+/* rilevamento reale di flex-gap (Safari < 14.1 non lo supporta) */
+(function(){try{var d=document.createElement('div');d.style.cssText='display:flex;flex-direction:column;row-gap:1px;position:absolute;visibility:hidden';d.appendChild(document.createElement('div'));d.appendChild(document.createElement('div'));document.body.appendChild(d);var ok=d.scrollHeight===1;document.body.removeChild(d);if(!ok)document.documentElement.className+=' no-flex-gap';}catch(e){}})();
+/* iOS <= 12 / browser senza Pointer Events: polyfill (OrbitControls li richiede) */
+window.__legacyTouch=!window.PointerEvent;
+if(window.__legacyTouch){document.write('<script src="https://cdn.jsdelivr.net/npm/pepjs@0.5.3/dist/pep.min.js"><\/script>');}
+</script>
+<!-- polyfill importmap per Safari < 16.4 e browser datati -->
+<script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
 </script>
@@ -223,6 +372,27 @@ html{-webkit-tap-highlight-color:transparent}
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+/* ---- viewport / responsive helpers ---- */
+const mqCompact = window.matchMedia('(max-width:900px), (max-height:500px)');
+const mqNarrow = window.matchMedia('(max-width:700px)');
+const mqCoarse = window.matchMedia('(pointer:coarse)');
+const isCompact = () => mqCompact.matches;
+const isNarrow = () => mqNarrow.matches;
+let _vw = window.innerWidth, _vh = window.innerHeight;
+const VW = () => _vw, VH = () => _vh;
+// pixel ratio adattivo: massimo 2, ridotto se il canvas e' enorme (iPad/Android datati)
+function pixelRatio() {
+  const d = Math.min(window.devicePixelRatio || 1, 2);
+  return Math.max(1, Math.min(d, Math.sqrt(5e6 / Math.max(1, _vw * _vh))));
+}
+function measure() {
+  const c = document.getElementById('canvas-container');
+  // altezza reale visibile (iOS < 15.4 / Android: 100vh include le barre del browser)
+  document.documentElement.style.setProperty('--app-h', (window.innerHeight || document.documentElement.clientHeight || 600) + 'px');
+  _vw = Math.max(1, c.clientWidth || window.innerWidth);
+  _vh = Math.max(1, c.clientHeight || window.innerHeight);
+}
 
 /* ============================================================
    COSTELLAZIONI
@@ -1125,14 +1295,17 @@ function createLayerItem(fullKey, label, isAsterism) {
    INIZIALIZZAZIONE
    ============================================================ */
 function init() {
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  window.__appStarted = true;
+  measure();
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer.setSize(VW(), VH());
+  renderer.setPixelRatio(pixelRatio());
   renderer.setScissorTest(false);
   document.getElementById('canvas-container').appendChild(renderer.domElement);
+  renderer.domElement.setAttribute('touch-action', 'none'); // usato dal polyfill Pointer Events su iOS <= 12
 
   labelRenderer = new CSS2DRenderer();
-  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.setSize(VW(), VH());
   labelRenderer.domElement.style.position = 'absolute';
   labelRenderer.domElement.style.top = '0';
   labelRenderer.domElement.style.left = '0';
@@ -1144,9 +1317,9 @@ function init() {
   scene2D.background = new THREE.Color(0x000006);
   scene3D.background = new THREE.Color(0x000006);
 
-  camera3D = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 20000);
-  camera2D = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 20000);
-  cameraE = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 20000);
+  camera3D = new THREE.PerspectiveCamera(50, VW() / VH(), 0.1, 20000);
+  camera2D = new THREE.PerspectiveCamera(50, VW() / VH(), 0.1, 20000);
+  cameraE = new THREE.PerspectiveCamera(50, VW() / VH(), 0.1, 20000);
 
   controls3D = new OrbitControls(camera3D, renderer.domElement);
   controls3D.enableDamping = true;
@@ -1206,7 +1379,7 @@ function init() {
   document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
   const uiEl = document.getElementById('ui');
   document.getElementById('ui-toggle').addEventListener('click', () => uiEl.classList.toggle('ui-hidden'));
-  if (window.innerWidth <= 700) uiEl.classList.add('ui-hidden');
+  if (isCompact()) uiEl.classList.add('ui-hidden');
   document.getElementById('tour-btn').addEventListener('click', startTour);
   document.getElementById('size-slider').addEventListener('input', e => {
     starScale = parseFloat(e.target.value);
@@ -1241,7 +1414,7 @@ function init() {
   });
   renderer.domElement.addEventListener('click', onCanvasClick);
   const cv = renderer.domElement;
-  const inLeft = e => currentMode === 'split' && e.clientX < window.innerWidth / 2;
+  const inLeft = e => currentMode === 'split' && e.clientX < VW() / 2;
   const is2D = e => currentMode === 'earth' || inLeft(e);
   cv.addEventListener('pointerdown', e => {
     downX = e.clientX; downY = e.clientY;
@@ -1259,7 +1432,7 @@ function init() {
     }
     if (currentMode === 'split' && !drag2D) controls3D.enabled = !tourActive && !inLeft(e);
     if (!drag2D) return;
-    const k = cameraE.fov / window.innerHeight * Math.PI / 180;
+    const k = cameraE.fov / VH() * Math.PI / 180;
     view2D.yaw += (e.clientX - drag2D.x) * k;
     view2D.pitch = Math.max(-1.5, Math.min(1.5, view2D.pitch + (e.clientY - drag2D.y) * k));
     drag2D = { x: e.clientX, y: e.clientY };
@@ -1269,10 +1442,31 @@ function init() {
   cv.addEventListener('wheel', e => {
     if (tourActive || !is2D(e)) return;
     e.preventDefault();
-    cameraE.fov = Math.max(3, Math.min(100, cameraE.fov * (e.deltaY > 0 ? 1.1 : 1 / 1.1)));
+    const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 100 : e.deltaY;
+    const kz = e.ctrlKey ? 0.01 : 0.001;
+    cameraE.fov = Math.max(3, Math.min(100, cameraE.fov * Math.exp(Math.max(-120, Math.min(120, dy)) * kz)));
     cameraE.updateProjectionMatrix();
   }, { passive: false });
-  window.addEventListener('resize', onResize);
+  let rzQ = false;
+  const queueResize = () => { if (rzQ) return; rzQ = true; requestAnimationFrame(() => { rzQ = false; onResize(); }); };
+  window.addEventListener('resize', queueResize);
+  window.addEventListener('orientationchange', () => { queueResize(); setTimeout(queueResize, 300); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', queueResize);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { queueResize(); setTimeout(queueResize, 250); } });
+  window.addEventListener('pageshow', () => { queueResize(); setTimeout(queueResize, 250); });
+  // iOS < 13: touch-action non supportato -> evita lo zoom col doppio tap sul canvas
+  if (window.__legacyTouch) {
+    let lastTap = 0;
+    cv.addEventListener('touchend', e => { const t = Date.now(); if (t - lastTap < 300 && e.cancelable) e.preventDefault(); lastTap = t; }, { passive: false });
+  }
+  if ('ResizeObserver' in window) new ResizeObserver(queueResize).observe(document.getElementById('canvas-container'));
+  const onCompactChange = e => { uiEl.classList.toggle('ui-hidden', e.matches); queueResize(); };
+  if (mqCompact.addEventListener) mqCompact.addEventListener('change', onCompactChange); else if (mqCompact.addListener) mqCompact.addListener(onCompactChange);
+  // iOS Safari: blocca lo zoom di pagina con la pizzicata
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+  // puntatori "rimasti appesi" se la finestra perde il focus
+  window.addEventListener('blur', () => { ptrs.clear(); drag2D = null; pinchD = 0; });
+  if (mqCoarse.matches) document.getElementById('hint').textContent = 'Tocca una stella per info · Trascina per ruotare · Pizzica per zoom';
 
   // Stato iniziale
   const initialFilter = document.getElementById('filter-select').value;
@@ -1292,7 +1486,7 @@ function clearGroup(g) {
   }
 }
 function updateAspects() {
-  const w = window.innerWidth, h = window.innerHeight;
+  const w = VW(), h = VH();
   const a = (currentMode === 'split' ? w / 2 : w) / h;
   [camera3D, camera2D, cameraE].forEach(c => { c.aspect = a; c.updateProjectionMatrix(); });
 }
@@ -1354,9 +1548,11 @@ function applyRefVisibility() {
   for (const k of Object.keys(on)) { setRefVis(refs3D[k], on[k] && show3, lab); setRefVis(refs2D[k], on[k] && show2, lab); }
 }
 function onResize() {
-  if (currentMode === 'split' && window.innerWidth <= 700) setMode('3d');
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  measure();
+  if (currentMode === 'split' && isNarrow()) setMode('3d');
+  renderer.setPixelRatio(pixelRatio());
+  renderer.setSize(VW(), VH());
+  labelRenderer.setSize(VW(), VH());
   updateAspects();
 }
 
@@ -1457,7 +1653,7 @@ function rebuildScene(resetView = true) {
     };
 
     const m3 = new THREE.Mesh(STAR_GEOMETRY, new THREE.MeshBasicMaterial({ color: s.color }));
-    m3.position.copy(p3D); m3.scale.setScalar(radius); m3.userData = { ...userData, baseR: radius };
+    m3.position.copy(p3D); m3.scale.setScalar(radius); m3.userData = Object.assign({}, userData, { baseR: radius });
     group3D.add(m3);
     const g3 = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeGlowTexture(), color: s.color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: glowOp }));
     g3.userData = { baseR: radius, glowK: entry.isActive ? 8 : 5 };
@@ -1468,7 +1664,7 @@ function rebuildScene(resetView = true) {
     labelGroup3D.add(lbl3);
 
     const m2 = new THREE.Mesh(STAR_GEOMETRY, new THREE.MeshBasicMaterial({ color: s.color }));
-    m2.position.copy(p2D); m2.scale.setScalar(radius); m2.userData = { ...userData, baseR: radius };
+    m2.position.copy(p2D); m2.scale.setScalar(radius); m2.userData = Object.assign({}, userData, { baseR: radius });
     group2D.add(m2);
     const g2 = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeGlowTexture(), color: s.color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: glowOp }));
     g2.userData = { baseR: radius, glowK: entry.isActive ? 8 : 5 };
@@ -1576,12 +1772,12 @@ function onCanvasClick(event) {
   if (currentMode === '3d') { scene = scene3D; cam = camera3D; }
   else if (currentMode === '2d' || currentMode === 'earth') { scene = scene2D; cam = currentMode === 'earth' ? cameraE : camera2D; }
   else if (currentMode === 'split') {
-    const left = event.clientX < window.innerWidth / 2;
+    const left = event.clientX < VW() / 2;
     scene = left ? scene2D : scene3D; cam = left ? cameraE : camera3D;
-    mouseX = left ? event.clientX : event.clientX - window.innerWidth / 2;
+    mouseX = left ? event.clientX : event.clientX - VW() / 2;
   }
-  const halfW = currentMode === 'split' ? window.innerWidth / 2 : window.innerWidth;
-  const H = window.innerHeight, v = new THREE.Vector3();
+  const halfW = currentMode === 'split' ? VW() / 2 : VW();
+  const H = VH(), v = new THREE.Vector3();
   const maxPx = event.pointerType === 'touch' ? 34 : 22;
   cam.updateMatrixWorld();
   let best = null, bestD = maxPx;
@@ -1679,7 +1875,7 @@ function startTour() {
     clock: 0, last: performance.now(), look: null, viewX: 0, viewY: 0, textKey: ''
   };
 
-  if (window.innerWidth <= 700) document.getElementById('ui').classList.add('ui-hidden');
+  if (isCompact()) document.getElementById('ui').classList.add('ui-hidden');
   tourActive = true;
   controls3D.enabled = false; controls2D.enabled = false;
   ['size-slider', 'tour-dist-slider', 'tour-rhythm-slider'].forEach(id => document.getElementById(id).disabled = true);
@@ -1745,9 +1941,9 @@ function updateTour(now) {
   else ts.look.lerp(st.look, 1 - Math.exp(-dt / 0.45));
 
   // spazio per i pannelli: stella leggermente sopra il centro e a destra del pannello comandi
-  const w = window.innerWidth, h = window.innerHeight;
+  const w = VW(), h = VH();
   const uiEl = document.getElementById('ui');
-  const uiOn = w > 700 && uiEl && !uiEl.classList.contains('ui-hidden');
+  const uiOn = !isCompact() && uiEl && !uiEl.classList.contains('ui-hidden');
   const tx = uiOn ? (uiEl.getBoundingClientRect().width + 16) / 2 : 0, ty = h * 0.06;
   const k = 1 - Math.exp(-dt / 0.4);
   ts.viewX += (tx - ts.viewX) * k; ts.viewY += (ty - ts.viewY) * k;
@@ -1811,17 +2007,17 @@ function animate() {
   }
   if (currentMode === '3d') {
     renderer.setScissorTest(false);
-    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+    renderer.setViewport(0, 0, VW(), VH());
     renderer.render(scene3D, camera3D);
     labelRenderer.render(scene3D, camera3D);
   } else if (currentMode === '2d' || currentMode === 'earth') {
     const c2 = currentMode === 'earth' ? cameraE : camera2D;
     renderer.setScissorTest(false);
-    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+    renderer.setViewport(0, 0, VW(), VH());
     renderer.render(scene2D, c2);
     labelRenderer.render(scene2D, c2);
   } else if (currentMode === 'split') {
-    const w = window.innerWidth, h = window.innerHeight, hw = w / 2;
+    const w = VW(), h = VH(), hw = w / 2;
     renderer.setScissorTest(true);
     renderer.setViewport(0, 0, hw, h); renderer.setScissor(0, 0, hw, h);
     renderer.render(scene2D, cameraE);
@@ -1831,7 +2027,11 @@ function animate() {
   }
 }
 
-init();
+try { init(); }
+catch (err) {
+  console.error(err);
+  window.__showCompat('Impossibile avviare la grafica 3D (WebGL). Aggiorna il browser o attiva l\'accelerazione hardware nelle impostazioni.');
+}
 </script>
 </body>
 </html>
