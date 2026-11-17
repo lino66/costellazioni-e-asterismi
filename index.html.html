@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Costellazioni & Asterismi — Studio 3D</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #fff; }
+  #canvas-container { position: fixed; inset: 0; }
+  #ui {
+    position: fixed; top: 16px; left: 16px;
+    background: rgba(10, 15, 35, 0.88);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(120, 160, 255, 0.2);
+    border-radius: 14px; padding: 16px 18px; width: 340px;
+    font-size: 13px; z-index: 10;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    max-height: calc(100vh - 32px); overflow-y: auto;
+  }
+  #ui h1 { font-size: 15px; margin-bottom: 12px; font-weight: 600; letter-spacing: 0.3px; }
+  #ui select, #ui button {
+    width: 100%; padding: 9px 10px; border-radius: 8px;
+    border: 1px solid rgba(120, 160, 255, 0.25);
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff; font-size: 13px; cursor: pointer; margin-bottom: 8px;
+    transition: background 0.15s;
+  }
+  #ui select:hover, #ui button:hover { background: rgba(120, 160, 255, 0.15); }
+  #ui select option { background: #0a0f23; }
+  #ui optgroup { background: #0a0f23; color: #a8b8d8; font-style: normal; }
+  #filter-select { background: rgba(255, 200, 80, 0.08) !important; border-color: rgba(255, 200, 80, 0.3) !important; font-weight: 600; margin-bottom: 6px !important; }
+  #filter-select:hover { background: rgba(255, 200, 80, 0.18) !important; }
+  .btn-row { display: flex; gap: 6px; margin-bottom: 8px; }
+  .btn-row button { flex: 1; margin: 0 !important; padding: 8px 4px !important; font-size: 11px !important; }
+  .mode-btn.active { background: rgba(107, 143, 255, 0.35) !important; border-color: rgba(107, 143, 255, 0.7) !important; font-weight: 600; }
+  #tour-btn { background: rgba(255, 140, 60, 0.2) !important; border-color: rgba(255, 140, 60, 0.5) !important; font-weight: 600; }
+  #tour-btn:hover { background: rgba(255, 140, 60, 0.35) !important; }
+  #ui label { display: flex; align-items: center; gap: 8px; margin: 7px 0; cursor: pointer; font-size: 12px; color: #c8d5f0; }
+  #ui input[type="checkbox"] { cursor: pointer; accent-color: #6b8fff; }
+  #tour-dist-block {
+    display: block; margin: 4px 0 10px 0;
+    padding: 8px 10px;
+    background: rgba(255, 140, 60, 0.08);
+    border: 1px solid rgba(255, 140, 60, 0.25);
+    border-radius: 8px;
+  }
+  #tour-dist-block .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 11.5px; color: #ffd9a8; }
+  #tour-dist-value { font-weight: 700; color: #ffcc44; font-size: 12px; }
+  #tour-dist-slider { width: 100%; height: 4px; -webkit-appearance: none; appearance: none; background: rgba(255, 140, 60, 0.25); border-radius: 2px; outline: none; accent-color: #ff8c3c; cursor: pointer; }
+  #tour-dist-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #ff8c3c; cursor: pointer; border: 2px solid #fff; }
+  #tour-dist-slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #ff8c3c; cursor: pointer; border: 2px solid #fff; }
+  #tour-dist-block .hint { font-size: 10px; color: rgba(255, 200, 140, 0.6); margin-top: 4px; }
+  #layers-section { margin-top: 10px; padding-top: 12px; border-top: 1px solid rgba(120, 160, 255, 0.15); }
+  #layers-section h3 { font-size: 12px; font-weight: 600; color: #a8b8d8; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+  #layers-section h3 .arrow { font-size: 10px; transition: transform 0.2s; }
+  #layers-section.collapsed h3 .arrow { transform: rotate(-90deg); }
+  #layers-section.collapsed #layers-body { display: none; }
+  #layers-reset { width: 100%; padding: 6px 8px; font-size: 11px; margin-bottom: 8px; background: rgba(100, 220, 150, 0.15) !important; border-color: rgba(100, 220, 150, 0.35) !important; color: #a0f0c0 !important; }
+  #layers-reset:hover { background: rgba(100, 220, 150, 0.28) !important; }
+  .layer-group-title { font-size: 10px; color: #a8b8d8; font-weight: 600; margin: 8px 0 4px 0; letter-spacing: 0.5px; }
+  .layer-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px; margin: 2px 0; border-radius: 6px; font-size: 11.5px; cursor: pointer; user-select: none; transition: background 0.15s; }
+  .layer-item:hover { background: rgba(120, 160, 255, 0.1); }
+  .layer-item input[type="checkbox"] { accent-color: #6b8fff; cursor: pointer; flex-shrink: 0; }
+  .layer-item .swatch { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 6px currentColor; }
+  .layer-item .lname { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .layer-item .badge-active { font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(255, 200, 80, 0.25); color: #ffcc44; font-weight: 600; }
+  #desc { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(120, 160, 255, 0.15); font-size: 12px; line-height: 1.55; color: #a8b8d8; }
+  #cultural-info { margin-top: 10px; padding: 10px; border-radius: 8px; background: rgba(255, 190, 100, 0.1); border: 1px solid rgba(255, 190, 100, 0.25); font-size: 11.5px; line-height: 1.5; color: #ffd9a8; }
+  .hidden { display: none !important; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; margin-right: 4px; margin-bottom: 6px; }
+  .tag-3d { background: rgba(107, 143, 255, 0.25); color: #a8c2ff; }
+  .tag-2d { background: rgba(255, 183, 77, 0.25); color: #ffcb7f; }
+  .tag-split { background: rgba(200, 100, 255, 0.25); color: #d4a8ff; }
+  .tag-con { background: rgba(150, 100, 255, 0.28); color: #c0a0ff; }
+  .tag-ast { background: rgba(100, 220, 150, 0.28); color: #a0f0c0; }
+  .tag-zod { background: rgba(255, 100, 200, 0.28); color: #ffa0d4; }
+  .label { color: #fff; font-size: 11px; text-shadow: 0 0 4px #000, 0 0 8px #000, 0 0 12px #000; pointer-events: none; white-space: nowrap; font-weight: 600; text-align: center; }
+  .label .dist { font-size: 9px; opacity: 0.65; font-weight: 400; display: block; }
+  .label.sun { color: #ffd54f; font-size: 12px; }
+  .label.ring { color: #8aa8ff; font-size: 10px; opacity: 0.7; font-weight: 400; }
+  .label.inactive { opacity: 0.45; font-size: 9.5px; }
+  #hint { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 11px; color: rgba(255, 255, 255, 0.45); text-align: center; pointer-events: none; padding: 6px 14px; background: rgba(0,0,0,0.4); border-radius: 20px; }
+  #info-panel { position: fixed; top: 16px; right: 16px; width: 300px; background: rgba(10, 15, 35, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(120, 160, 255, 0.3); border-radius: 14px; padding: 16px 18px; font-size: 12.5px; z-index: 20; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6); max-height: calc(100vh - 32px); overflow-y: auto; }
+  #info-panel h2 { font-size: 16px; margin-bottom: 4px; color: #fff; }
+  #info-panel .info-sub { font-size: 11px; color: #a8b8d8; margin-bottom: 12px; }
+  #info-panel .info-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(120, 160, 255, 0.1); }
+  #info-panel .info-row span:first-child { color: #a8b8d8; }
+  #info-panel .info-row span:last-child { color: #fff; font-weight: 500; text-align: right; }
+  #info-panel .curiosity { margin-top: 12px; padding: 10px; background: rgba(255, 200, 100, 0.08); border-left: 3px solid rgba(255, 200, 100, 0.5); border-radius: 6px; font-size: 11.5px; line-height: 1.55; color: #ffd9a8; font-style: italic; }
+  #info-close { position: absolute; top: 10px; right: 12px; width: 24px; height: 24px; padding: 0; margin: 0; border: none; background: rgba(255,255,255,0.1); border-radius: 50%; font-size: 12px; }
+  #info-close:hover { background: rgba(255,255,255,0.2); }
+  #tour-overlay { position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%); background: rgba(10, 15, 35, 0.92); backdrop-filter: blur(12px); border: 1px solid rgba(255, 140, 60, 0.4); border-radius: 14px; padding: 18px 24px; max-width: 560px; text-align: center; z-index: 30; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6); transition: opacity 0.4s; }
+  #tour-text { font-size: 14px; line-height: 1.55; color: #fff; margin-bottom: 12px; }
+  #tour-cancel { width: auto; padding: 6px 16px; font-size: 11px; margin: 0; background: rgba(255, 100, 100, 0.2); border-color: rgba(255, 100, 100, 0.4); }
+  #tour-cancel:hover { background: rgba(255, 100, 100, 0.35); }
+  #tour-compass { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 29; max-width: 90vw; overflow-x: auto; padding: 8px 14px; background: rgba(10, 15, 35, 0.85); backdrop-filter: blur(12px); border-radius: 30px; border: 1px solid rgba(255, 140, 60, 0.3); }
+  #tour-compass .dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255, 255, 255, 0.2); flex-shrink: 0; transition: all 0.3s; }
+  #tour-compass .dot.visited { background: rgba(255, 200, 80, 0.4); }
+  #tour-compass .dot.current { background: #ffcc44; box-shadow: 0 0 10px #ffcc44; transform: scale(1.5); }
+  #split-divider { position: fixed; top: 0; bottom: 0; left: 50%; width: 2px; background: rgba(107, 143, 255, 0.4); z-index: 5; pointer-events: none; }
+  #split-labels { position: fixed; bottom: 60px; left: 0; right: 0; display: flex; z-index: 6; pointer-events: none; }
+  #split-labels div { flex: 1; text-align: center; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.75); letter-spacing: 1px; text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
+  @media (max-width: 700px) {
+    #ui { width: calc(100% - 32px); font-size: 12px; }
+    #info-panel { width: calc(100% - 32px); top: auto; bottom: 16px; max-height: 45vh; }
+  }
+#size-block{display:block;margin:4px 0 10px;padding:8px 10px;background:rgba(107,143,255,.08);border:1px solid rgba(107,143,255,.25);border-radius:8px}
+#size-block .row{display:flex;justify-content:space-between;font-size:11.5px;color:#c8d5f0;margin-bottom:4px}
+#size-slider{width:100%;accent-color:#6b8fff;cursor:pointer}
+#ui-toggle{position:fixed;left:16px;bottom:14px;z-index:40;width:42px;height:42px;border-radius:50%;border:1px solid rgba(120,160,255,.4);background:rgba(10,15,35,.9);color:#fff;font-size:18px;cursor:pointer}
+#ui.ui-hidden{display:none}
+html{-webkit-tap-highlight-color:transparent}
+@media (max-width:700px){
+  #ui-toggle{top:12px;bottom:auto;left:12px}
+  #ui{top:64px !important;max-height:calc(100vh - 80px);max-height:calc(100dvh - 80px)}
+  #hint,.mode-btn[data-mode="split"]{display:none !important}
+  #tour-overlay{width:calc(100% - 24px);padding:12px 14px;bottom:56px}
+  #tour-text{font-size:13px}
+}
+@media (pointer:coarse){
+  #ui select,#ui button{padding:12px 10px}
+  #tour-dist-slider{height:8px !important}
+  #tour-dist-slider::-webkit-slider-thumb{width:26px !important;height:26px !important}
+  #tour-dist-slider::-moz-range-thumb{width:26px !important;height:26px !important}
+  #size-slider{height:30px}
+  #ui label{margin:10px 0}
+}
+.label.ref{color:#8fb4e8;font-size:10px;opacity:.85;white-space:nowrap}
+.label.ref-ecl{color:#ffbf66}
+
+#tour-text{min-height:2.9em;display:flex;align-items:center;justify-content:center;flex-direction:column}
+#tour-rhythm-slider{width:100%;height:4px;-webkit-appearance:none;appearance:none;background:rgba(255,140,60,.25);border-radius:2px;outline:none;accent-color:#ff8c3c;cursor:pointer}
+#tour-rhythm-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#ff8c3c;cursor:pointer;border:2px solid #fff}
+#tour-rhythm-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#ff8c3c;cursor:pointer;border:2px solid #fff}
+#tour-rhythm-slider:disabled,#tour-dist-slider:disabled,#size-slider:disabled{opacity:.4;cursor:not-allowed}
+@media (max-width:700px){
+  #tour-rhythm-slider{height:8px !important}
+  #tour-rhythm-slider::-webkit-slider-thumb{width:26px !important;height:26px !important}
+  #tour-rhythm-slider::-moz-range-thumb{width:26px !important;height:26px !important}
+}
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+<button id="ui-toggle" aria-label="Comandi">☰</button>
+<div id="ui">
+  <h1>🌌 Costellazioni & Asterismi</h1>
+  <select id="filter-select">
+    <option value="all">🌌 Tutti i tipi</option>
+    <option value="zodiac">♈ Solo segni zodiacali</option>
+    <option value="constellations">⭐ Solo altre costellazioni</option>
+    <option value="asterisms">✦ Solo asterismi</option>
+  </select>
+  <select id="constellation-select"></select>
+  <div class="btn-row">
+    <button class="mode-btn active" data-mode="3d">🌐 3D</button>
+    <button class="mode-btn" data-mode="2d">📸 2D</button>
+    <button class="mode-btn" data-mode="earth">🌍 Terra</button>
+    <button class="mode-btn" data-mode="split">⇔ Confronto</button>
+  </div>
+  <div id="tour-dist-block">
+    <div class="row"><span>📏 Distanza tour</span><span id="tour-dist-value">1×</span></div>
+    <input type="range" id="tour-dist-slider" min="0" max="1" step="0.001" value="0.301">
+    <div class="hint">0.5 = ravvicinato · 1 = consigliato · 5 = panoramico (mai dentro la stella)</div>
+    <div class="row" style="margin-top:8px"><span>⏱ Ritmo</span><span id="tour-rhythm-value">1×</span></div>
+    <input type="range" id="tour-rhythm-slider" min="0.6" max="1.8" step="0.05" value="1">
+    <div class="hint">&lt;1 più rapido · &gt;1 più lento e contemplativo</div>
+  </div>
+  <div id="size-block"><div class="row"><span>⚪ Dimensione corpi celesti</span><span id="size-value">0.3×</span></div><input type="range" id="size-slider" min="0.3" max="4" step="0.1" value="0.3"></div>
+  <button id="tour-btn">🚀 Viaggio guidato</button>
+  <label><input type="checkbox" id="rings-toggle"> Anelli di distanza</label>
+  <label><input type="checkbox" id="milkyway-toggle"> Via Lattea</label>
+  <label><input type="checkbox" id="grid-toggle"> Griglia AR/Dec ed equatore</label>
+  <label><input type="checkbox" id="ecl-toggle"> Eclittica, equinozi e solstizi</label>
+  <label><input type="checkbox" id="poles-toggle"> Poli celesti e asse</label>
+  <label><input type="checkbox" id="scale-toggle"> Scala compressa (√d)</label>
+  <label><input type="checkbox" id="labels-toggle" checked> Mostra nomi</label>
+  <label><input type="checkbox" id="lines-toggle" checked> Mostra linee</label>
+  <select id="cultural-select">
+    <option value="modern">Tradizione moderna</option>
+    <option value="chinese">Cultura cinese</option>
+    <option value="arabic">Cultura araba</option>
+    <option value="indigenous">Cultura indigena</option>
+  </select>
+  <button id="reset-btn">↺ Resetta vista</button>
+  <div id="layers-section">
+    <h3 id="layers-toggle-btn"><span>🎨 Livelli visibili <span id="layers-count" style="color:#6b8fff;font-weight:400;"></span></span><span class="arrow">▼</span></h3>
+    <div id="layers-body">
+      <button id="layers-reset">Mostra solo l'attiva</button>
+      <div class="layer-group-title">♈ ZODIACO</div>
+      <div id="layers-zodiac"></div>
+      <div class="layer-group-title">⭐ ALTRE COSTELLAZIONI</div>
+      <div id="layers-con"></div>
+      <div class="layer-group-title">✦ ASTERISMI</div>
+      <div id="layers-ast"></div>
+    </div>
+  </div>
+  <div id="desc"></div>
+  <div id="cultural-info" class="hidden"></div>
+</div>
+<div id="info-panel" class="hidden">
+  <button id="info-close">✕</button>
+  <div id="info-content"></div>
+</div>
+<div id="tour-overlay" class="hidden">
+  <div id="tour-text"></div>
+  <button id="tour-cancel">Termina viaggio</button>
+</div>
+<div id="tour-compass" class="hidden"></div>
+<div id="split-divider" class="hidden"></div>
+<div id="split-labels" class="hidden"><div>📸 VISTA DALLA TERRA</div><div>🌐 VISTA 3D REALE</div></div>
+<div id="hint">Clicca/tocca una stella per info · Trascina per ruotare · Rotella/pizzica per zoom</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+/* ============================================================
+   COSTELLAZIONI
+   ============================================================ */
+const CONSTELLATIONS = {
+  /* --- ZODIACO (12) --- */
+  "Ariete": {
+    desc: "L'Ariete è una costellazione zodiacale relativamente piccola. Un tempo conteneva il punto vernale (equinozio di primavera), oggi spostato nei Pesci dalla precessione degli equinozi. La sua stella più brillante è Hamal (65,8 a.l.).",
+    stars: {
+      hamal:{ra:2.11956,dec:23.46242,dist:65.8,mag:2.01,color:0xffcc6f,name:"Hamal (α)",hip:9884,sp:"K2III",M:0.49},
+      sheratan:{ra:1.91067,dec:20.80804,dist:58.7,mag:2.64,color:0xfff4ea,name:"Sheratan (β)",hip:8903,sp:"A5V...",M:1.36},
+      mesarthim:{ra:1.89217,dec:19.29385,dist:164,mag:3.88,color:0xaabfff,name:"Mesarthim (γ)",hip:8832,sp:"A1p Si",M:0.37},
+      bharani:{ra:2.83306,dec:27.26051,dist:166,mag:3.61,color:0xaabfff,name:"Bharani (41)",hip:13209,sp:"B8Vn",M:0.08},
+      delta_ari:{ra:3.19382,dec:19.72668,dist:170,mag:4.35,color:0xfff4ea,name:"δ Ari",hip:14838,sp:"K2IIIvar",M:0.77}
+    },
+    lines:[["hamal","sheratan"],["sheratan","mesarthim"],["mesarthim","bharani"],["bharani","delta_ari"]]
+  },
+  "Toro": {
+    desc: "Il Toro contiene Aldebaran (l'occhio del toro, 65 a.l.) e le Iadi, oltre all'ammasso delle Pleiadi. Le due punte delle corna sono Elnath (β) e ζ Tau.",
+    stars: {
+      aldebaran:{ra:4.59868,dec:16.50930,dist:66.6,mag:0.87,color:0xffcc6f,name:"Aldebaran (α)",hip:21421,sp:"K5III",M:-0.68},
+      elnath:{ra:5.43820,dec:28.60745,dist:134,mag:1.65,color:0xaabfff,name:"Elnath (β)",hip:25428,sp:"B7III",M:-1.42},
+      alcyone:{ra:3.79141,dec:24.10514,dist:403,mag:2.85,color:0xaabfff,name:"Alcyone (η)",hip:17702,sp:"B7III",M:-2.61},
+      zeta_tau:{ra:5.62741,dec:21.14255,dist:445,mag:2.97,color:0x9bb0ff,name:"ζ Tau",hip:26451,sp:"B4IIIp",M:-2.70},
+      theta_tau:{ra:4.47771,dec:15.87088,dist:150,mag:3.40,color:0xaabfff,name:"θ Tau",hip:20894,sp:"A7III",M:0.08},
+      gamma_tau:{ra:4.32989,dec:15.62764,dist:162,mag:3.65,color:0xaabfff,name:"γ Tau",hip:20205,sp:"G8III",M:0.18},
+      epsilon_tau:{ra:4.47694,dec:19.18043,dist:147,mag:3.53,color:0xaabfff,name:"ε Tau",hip:20889,sp:"K0III",M:0.27},
+      lambda_tau:{ra:4.01134,dec:12.49035,dist:484,mag:3.41,color:0xaabfff,name:"λ Tau",hip:18724,sp:"B3V + A",M:-2.45}
+    },
+    lines:[["gamma_tau","epsilon_tau"],["epsilon_tau","aldebaran"],["aldebaran","theta_tau"],["theta_tau","gamma_tau"],["aldebaran","zeta_tau"],["zeta_tau","elnath"],["aldebaran","lambda_tau"],["alcyone","lambda_tau"]]
+  },
+  "Gemelli": {
+    desc: "I Gemelli sono dominati da Castore e Polluce. Polluce è a 34 a.l., Castore a 52 a.l., ma Epsilon Gem è a 903 a.l.",
+    stars: {
+      pollux:{ra:7.75528,dec:28.02620,dist:33.8,mag:1.16,color:0xffcc6f,name:"Pollux (β)",hip:37826,sp:"K0IIIvar",M:1.08},
+      castor:{ra:7.57663,dec:31.88828,dist:50.9,mag:1.58,color:0xaabfff,name:"Castor (α)",hip:36850,sp:"A2Vm",M:0.61},
+      gamma:{ra:6.62853,dec:16.39925,dist:109,mag:1.93,color:0xaabfff,name:"Alhena (γ)",hip:31681,sp:"A0IV",M:-0.70},
+      mu:{ra:6.38267,dec:22.51359,dist:232,mag:2.87,color:0xffcc6f,name:"Tejat (μ)",hip:30343,sp:"M3IIIvar",M:-1.39},
+      epsilon:{ra:6.73220,dec:25.13112,dist:845,mag:3.06,color:0xfff4ea,name:"Mebsuta (ε)",hip:32246,sp:"A3mA6-A9",M:-4.01},
+      eta:{ra:6.24796,dec:22.50680,dist:385,mag:3.31,color:0xffcc6f,name:"Propus (η)",hip:29655,sp:"M3III",M:-2.05},
+      xi:{ra:6.75482,dec:12.89559,dist:58.7,mag:3.35,color:0xfff4ea,name:"Alzir (ξ)",hip:32362,sp:"F5IV",M:2.07},
+      delta:{ra:7.33538,dec:21.98232,dist:60.5,mag:3.50,color:0xfff4ea,name:"Wasat (δ)",hip:35550,sp:"F0IV...",M:2.16}
+    },
+    lines:[["pollux","castor"],["castor","epsilon"],["epsilon","mu"],["mu","eta"],["eta","gamma"],["gamma","xi"],["xi","delta"],["delta","gamma"],["delta","pollux"]]
+  },
+  "Cancro": {
+    desc: "Il Cancro è la costellazione zodiacale più debole: la sua stella più luminosa (Al Tarf) ha magnitudine 3,53. Contiene il famoso ammasso del Presepe (M44), visibile a occhio nudo.",
+    stars: {
+      beta_cnc:{ra:8.27526,dec:9.18554,dist:303,mag:3.53,color:0xffcc6f,name:"Al Tarf (β)",hip:40526,sp:"K4III",M:-1.31},
+      delta_cnc:{ra:8.74475,dec:18.15431,dist:131,mag:3.94,color:0xffcc6f,name:"Asellus Australis (δ)",hip:42911,sp:"K0III",M:0.93},
+      gamma_cnc:{ra:8.72143,dec:21.46850,dist:181,mag:4.66,color:0xaabfff,name:"Asellus Borealis (γ)",hip:42806,sp:"A1IV",M:0.94},
+      alpha_cnc:{ra:8.97478,dec:11.85770,dist:188,mag:4.26,color:0xaabfff,name:"Acubens (α)",hip:44066,sp:"A5m",M:0.45},
+      iota_cnc:{ra:8.77828,dec:28.75990,dist:331,mag:4.03,color:0xffcc6f,name:"ι Cnc",hip:43103,sp:"G8Iab:",M:-1.00},
+      zeta_cnc:{ra:8.20354,dec:17.64777,dist:81.8,mag:4.67,color:0xaabfff,name:"ζ Cnc",hip:40167,sp:"G0V",M:2.67}
+    },
+    lines:[["iota_cnc","gamma_cnc"],["gamma_cnc","delta_cnc"],["delta_cnc","beta_cnc"],["delta_cnc","alpha_cnc"]]
+  },
+  "Leone": {
+    desc: "Il Leone: Regulus è a 79 a.l., Denebola a soli 36 a.l., mentre Eta Leo è a 1270 a.l. La 'falce' è molto più profonda di quanto sembri.",
+    stars: {
+      regulus:{ra:10.13953,dec:11.96721,dist:79.3,mag:1.36,color:0xaabfff,name:"Regulus (α)",hip:49669,sp:"B7V",M:-0.57},
+      denebola:{ra:11.81766,dec:14.57206,dist:35.9,mag:2.14,color:0xaabfff,name:"Denebola (β)",hip:57632,sp:"A3Vvar",M:1.93},
+      algieba:{ra:10.33287,dec:19.84149,dist:130,mag:2.01,color:0xffd2a1,name:"Algieba (γ)",hip:50583,sp:"K0III",M:-0.99},
+      zosma:{ra:11.23514,dec:20.52372,dist:58.4,mag:2.56,color:0xaabfff,name:"Zosma (δ)",hip:54872,sp:"A4V",M:1.29},
+      epsilon:{ra:9.76419,dec:23.77426,dist:247,mag:2.97,color:0xfff4ea,name:"ε Leo",hip:47908,sp:"G0II",M:-1.42},
+      mu:{ra:9.87940,dec:26.00695,dist:124,mag:3.88,color:0xffd2a1,name:"μ Leo",hip:48455,sp:"K0III",M:0.98},
+      zeta:{ra:10.27817,dec:23.41731,dist:274,mag:3.43,color:0xf8f7ff,name:"ζ Leo",hip:50335,sp:"F0III",M:-1.19},
+      eta:{ra:10.12221,dec:16.76266,dist:1269,mag:3.48,color:0xaabfff,name:"η Leo",hip:49583,sp:"A0Ib",M:-4.47}
+    },
+    lines:[["regulus","eta"],["eta","algieba"],["algieba","zeta"],["zeta","mu"],["mu","epsilon"],["epsilon","regulus"],["regulus","zosma"],["zosma","denebola"],["denebola","epsilon"],["zosma","algieba"]]
+  },
+  "Vergine": {
+    desc: "La Vergine è la seconda costellazione più grande del cielo. Spica (α) è a 262 a.l. Include la 'Ciotola di Virgo', un ammasso di galassie.",
+    stars: {
+      spica:{ra:13.41988,dec:-11.16132,dist:250,mag:0.98,color:0x9bb0ff,name:"Spica (α)",hip:65474,sp:"B1V",M:-3.44},
+      porrima:{ra:12.69435,dec:-1.44938,dist:38.1,mag:2.74,color:0xfff4ea,name:"Porrima (γ)",hip:61941,sp:"F0V+...",M:2.40},
+      vindemiatrix:{ra:13.03628,dec:10.95915,dist:110,mag:2.85,color:0xfff4ea,name:"Vindemiatrix (ε)",hip:63608,sp:"G8IIIvar",M:0.22},
+      heze:{ra:13.57822,dec:-0.59582,dist:74.1,mag:3.38,color:0xaabfff,name:"Heze (ζ)",hip:66249,sp:"A3V",M:1.60},
+      auva:{ra:12.92672,dec:3.39747,dist:198,mag:3.39,color:0xffcc6f,name:"Auva (δ)",hip:63090,sp:"M3III",M:-0.53},
+      zavijava:{ra:14.71767,dec:-5.65821,dist:59.6,mag:3.87,color:0xfff4ea,name:"Zavijava (β)",hip:71957,sp:"F2III",M:2.56},
+      syrma:{ra:14.26691,dec:-6.00055,dist:72.5,mag:4.07,color:0xaabfff,name:"Syrma (ι)",hip:69701,sp:"F7V",M:2.33}
+    },
+    lines:[["spica","heze"],["heze","porrima"],["porrima","auva"],["auva","vindemiatrix"],["vindemiatrix","porrima"],["porrima","zavijava"],["zavijava","syrma"],["syrma","spica"]]
+  },
+  "Bilancia": {
+    desc: "La Bilancia è l'unica costellazione zodiacale a non rappresentare un essere vivente: era in origine le 'chele' dello Scorpione. Zubeneschamali (β) è a 185 a.l.",
+    stars: {
+      zubenelgenubi:{ra:14.84798,dec:-16.04178,dist:75.8,mag:2.75,color:0xaabfff,name:"Zubenelgenubi (α)",hip:72622,sp:"A3IV",M:0.92},
+      zubeneschamali:{ra:15.28345,dec:-9.38292,dist:185,mag:2.61,color:0x9bb0ff,name:"Zubeneschamali (β)",hip:74785,sp:"B8V",M:-1.16},
+      gamma_lib:{ra:15.59211,dec:-14.78954,dist:163,mag:3.91,color:0xfff4ea,name:"γ Lib",hip:76333,sp:"K0III",M:0.41},
+      sigma_lib:{ra:15.06784,dec:-25.28196,dist:288,mag:3.25,color:0xffcc6f,name:"Brachium (σ)",hip:73714,sp:"M3/M4III",M:-1.48},
+      upsilon_lib:{ra:15.61707,dec:-28.13508,dist:224,mag:3.60,color:0xfff4ea,name:"υ Lib",hip:76470,sp:"K3III",M:-0.58},
+      tau_lib:{ra:15.64427,dec:-29.77775,dist:367,mag:3.66,color:0x9bb0ff,name:"τ Lib",hip:76600,sp:"B2.5V",M:-1.59},
+      theta_lib:{ra:15.89709,dec:-16.72929,dist:168,mag:4.13,color:0xaabfff,name:"θ Lib",hip:77853,sp:"K0III",M:0.56}
+    },
+    lines:[["zubenelgenubi","zubeneschamali"],["zubeneschamali","gamma_lib"],["gamma_lib","theta_lib"],["theta_lib","sigma_lib"],["sigma_lib","upsilon_lib"],["upsilon_lib","tau_lib"]]
+  },
+  "Scorpione": {
+    desc: "La coda dello Scorpione si estende in profondità: da Dschubba (490 a.l.) ad Antares (550 a.l.), fino a Shaula (570 a.l.). Epsilon Sco è invece vicinissima (65 a.l.).",
+    stars: {
+      antares:{ra:16.49013,dec:-26.43200,dist:554,mag:1.06,color:0xffcc6f,name:"Antares (α)",hip:80763,sp:"M1Ib + B2.5V",M:-5.09},
+      shaula:{ra:17.56014,dec:-37.10382,dist:571,mag:1.62,color:0x9bb0ff,name:"Shaula (λ)",hip:85927,sp:"B1.5IV+...",M:-4.60},
+      sargas:{ra:17.62198,dec:-42.99782,dist:300,mag:1.86,color:0xf8f7ff,name:"Sargas (θ)",hip:86228,sp:"F1II",M:-2.96},
+      dschubba:{ra:16.00556,dec:-22.62171,dist:491,mag:2.29,color:0x9bb0ff,name:"Dschubba (δ)",hip:78401,sp:"B0.2IV",M:-3.60},
+      graffias:{ra:16.09062,dec:-19.80545,dist:404,mag:2.56,color:0x9bb0ff,name:"Graffias (β)",hip:78820,sp:"B0.5V",M:-2.91},
+      pi:{ra:15.98086,dec:-26.11410,dist:586,mag:2.89,color:0x9bb0ff,name:"π Sco",hip:78265,sp:"B1V + B2V",M:-3.38},
+      epsilon:{ra:16.83608,dec:-34.29323,dist:63.7,mag:2.29,color:0xffd2a1,name:"ε Sco",hip:82396,sp:"K2IIIb",M:0.84}
+    },
+    lines:[["graffias","dschubba"],["dschubba","pi"],["pi","antares"],["antares","epsilon"],["epsilon","sargas"],["sargas","shaula"]]
+  },
+  "Sagittario": {
+    desc: "Il Sagittario ospita il centro della nostra galassia. La sua forma è la famosa 'teiera'. Kaus Australis (ε) è a 143 a.l., mentre la coppia del manico (Nunki e τ) è più lontana.",
+    stars: {
+      kaus_australis:{ra:18.40287,dec:-34.38462,dist:143,mag:1.79,color:0xaabfff,name:"Kaus Australis (ε)",hip:90185,sp:"B9.5III",M:-1.42},
+      nunki:{ra:18.92109,dec:-26.29672,dist:228,mag:2.05,color:0x9bb0ff,name:"Nunki (σ)",hip:92855,sp:"B2.5V",M:-2.17},
+      ascella:{ra:19.04353,dec:-29.88011,dist:88.2,mag:2.60,color:0xfff4ea,name:"Ascella (ζ)",hip:93506,sp:"A3IV",M:0.44},
+      kaus_media:{ra:18.34990,dec:-29.82810,dist:348,mag:2.72,color:0xffcc6f,name:"Kaus Media (δ)",hip:89931,sp:"K3III",M:-2.42},
+      kaus_borealis:{ra:18.46618,dec:-25.42170,dist:78.2,mag:2.82,color:0xffcc6f,name:"Kaus Borealis (λ)",hip:90496,sp:"K1IIIb",M:0.92},
+      phi_sgr:{ra:18.76094,dec:-26.99078,dist:239,mag:3.17,color:0x9bb0ff,name:"φ Sgr",hip:92041,sp:"B8.5III",M:-1.16},
+      tau_sgr:{ra:19.11567,dec:-27.67042,dist:122,mag:3.32,color:0xffcc6f,name:"τ Sgr",hip:93864,sp:"K1/K2III",M:0.46},
+      pi_sgr:{ra:19.16273,dec:-21.02361,dist:510,mag:2.88,color:0xaabfff,name:"Albaldah (π)",hip:94141,sp:"F2II/III",M:-3.09}
+    },
+    lines:[["kaus_australis","kaus_media"],["kaus_media","kaus_borealis"],["kaus_borealis","phi_sgr"],["phi_sgr","nunki"],["nunki","tau_sgr"],["tau_sgr","ascella"],["ascella","kaus_australis"],["ascella","kaus_media"]]
+  },
+  "Capricorno": {
+    desc: "Il Capricorno è la costellazione zodiacale più piccola. Deneb Algedi (δ) è vicinissima (38,7 a.l.), mentre β Cap e ω Cap sono molto più lontane.",
+    stars: {
+      deneb_algedi:{ra:21.78401,dec:-16.12729,dist:38.7,mag:2.85,color:0xaabfff,name:"Deneb Algedi (δ)",hip:107556,sp:"A5mF2 (IV)",M:2.48},
+      beta_cap:{ra:20.35019,dec:-14.78137,dist:327,mag:3.05,color:0xffcc6f,name:"β Cap",hip:100345,sp:"A5:n",M:-1.95},
+      alpha_cap:{ra:20.30090,dec:-12.54485,dist:106,mag:3.58,color:0xffcc6f,name:"Algedi (α²)",hip:100064,sp:"G6/G8III",M:1.02},
+      omega_cap:{ra:20.86369,dec:-26.91913,dist:843,mag:4.12,color:0x9bb0ff,name:"ω Cap",hip:102978,sp:"K4III",M:-2.94},
+      psi_cap:{ra:20.76826,dec:-25.27090,dist:47.9,mag:4.13,color:0xaabfff,name:"ψ Cap",hip:102485,sp:"F5V",M:3.30},
+      zeta_cap:{ra:21.44445,dec:-22.41133,dist:386,mag:3.77,color:0x9bb0ff,name:"ζ Cap",hip:105881,sp:"G4Ibp...",M:-1.59},
+      theta_cap:{ra:21.09912,dec:-17.23286,dist:162,mag:4.08,color:0xfff4ea,name:"θ Cap",hip:104139,sp:"A1V",M:0.60},
+      gamma_cap:{ra:21.66818,dec:-16.66231,dist:157,mag:3.69,color:0xffcc6f,name:"γ Cap",hip:106985,sp:"A7III:mp...",M:0.28}
+    },
+    lines:[["alpha_cap","beta_cap"],["beta_cap","psi_cap"],["psi_cap","omega_cap"],["omega_cap","zeta_cap"],["zeta_cap","deneb_algedi"],["deneb_algedi","gamma_cap"],["gamma_cap","theta_cap"],["theta_cap","alpha_cap"]]
+  },
+  "Acquario": {
+    desc: "L'Acquario è una costellazione zodiacale vasta ma debole. Le sue stelle più brillanti (Sadalsuud, Sadalmelik) sono a circa 520-610 a.l. Contiene la nebulosa Elica (Helix Nebula).",
+    stars: {
+      sadalsuud:{ra:21.52598,dec:-5.57117,dist:537,mag:2.90,color:0xffcc6f,name:"Sadalsuud (β)",hip:106278,sp:"G0Ib",M:-3.18},
+      sadalmelik:{ra:22.09640,dec:-0.31985,dist:524,mag:2.95,color:0xffcc6f,name:"Sadalmelik (α)",hip:109074,sp:"G2Ib",M:-3.08},
+      skat:{ra:22.91084,dec:-15.82082,dist:161,mag:3.27,color:0xaabfff,name:"Skat (δ)",hip:113136,sp:"A3V",M:-0.19},
+      zeta_aqr:{ra:22.48053,dec:-0.01997,dist:91.9,mag:3.65,color:0xfff4ea,name:"ζ Aqr",hip:110960,sp:"F3III-IV",M:1.40},
+      lambda_aqr:{ra:22.87691,dec:-7.57960,dist:385,mag:3.73,color:0x9bb0ff,name:"λ Aqr",hip:112961,sp:"M2IIIvar",M:-1.63},
+      gamma_aqr:{ra:22.36094,dec:-1.38733,dist:164,mag:3.86,color:0xaabfff,name:"γ Aqr",hip:110395,sp:"A0V",M:0.36},
+      eta_aqr:{ra:22.58927,dec:-0.11750,dist:168,mag:4.04,color:0xaabfff,name:"η Aqr",hip:111497,sp:"B9IV-Vn",M:0.48},
+      tau2_aqr:{ra:22.82653,dec:-13.59263,dist:318,mag:4.05,color:0xffcc6f,name:"τ² Aqr",hip:112716,sp:"K5III",M:-0.89}
+    },
+    lines:[["sadalmelik","zeta_aqr"],["zeta_aqr","eta_aqr"],["eta_aqr","gamma_aqr"],["gamma_aqr","lambda_aqr"],["lambda_aqr","skat"],["skat","tau2_aqr"]]
+  },
+  "Pesci": {
+    desc: "I Pesci sono una costellazione zodiacale vasta ma debole, con la stella più luminosa (Alpherg) di magnitudine 3,62. Il punto vernale (equinozio di primavera) si trova al suo interno.",
+    stars: {
+      alpherg:{ra:1.52473,dec:15.34582,dist:350,mag:3.62,color:0xffcc6f,name:"Alpherg (η)",hip:7097,sp:"G8III",M:-1.53},
+      alrescha:{ra:2.03412,dec:2.76376,dist:151,mag:3.82,color:0xaabfff,name:"Alrescha (α)",hip:9487,sp:"A2",M:0.50},
+      gamma_psc:{ra:23.28609,dec:3.28229,dist:138,mag:3.70,color:0xfff4ea,name:"γ Psc",hip:114971,sp:"G7III",M:0.57},
+      omega_psc:{ra:23.98852,dec:6.86332,dist:104,mag:4.03,color:0xfff4ea,name:"ω Psc",hip:118268,sp:"F4IV",M:1.50},
+      iota_psc:{ra:23.66584,dec:5.62629,dist:44.7,mag:4.13,color:0xfff4ea,name:"ι Psc",hip:116771,sp:"F7V",M:3.44},
+      torcular:{ra:1.75656,dec:9.15774,dist:279,mag:4.26,color:0xffcc6f,name:"Torcular (ο)",hip:8198,sp:"K0III",M:-0.41},
+      epsilon_psc:{ra:1.04906,dec:7.89013,dist:182,mag:4.27,color:0xffcc6f,name:"ε Psc",hip:4906,sp:"K0III",M:0.54},
+      delta_psc:{ra:0.81137,dec:7.58508,dist:311,mag:4.44,color:0xffcc6f,name:"δ Psc",hip:3786,sp:"K5III",M:-0.46},
+      fumalsamakah:{ra:23.06461,dec:3.82004,dist:408,mag:4.48,color:0x9bb0ff,name:"Fumalsamakah (β)",hip:113889,sp:"B6Ve",M:-1.01},
+      revati:{ra:1.22886,dec:7.57535,dist:174,mag:5.21,color:0xaabfff,name:"Revati (ζ)",hip:5737,sp:"A7IV",M:1.58}
+    },
+    lines:[["alrescha","torcular"],["torcular","epsilon_psc"],["epsilon_psc","delta_psc"],["delta_psc","gamma_psc"],["gamma_psc","omega_psc"],["omega_psc","iota_psc"],["iota_psc","alrescha"],["alrescha","fumalsamakah"],["fumalsamakah","revati"]]
+  },
+  /* --- ALTRE COSTELLAZIONI --- */
+  "Orsa Maggiore": {
+    desc: "L'Orsa Maggiore è una delle costellazioni più estese del cielo. Contiene il famoso asterismo del Grande Carro. Le sue stelle principali vanno da 29 a 399 anni luce.",
+    stars: {
+      dubhe:{ra:11.06216,dec:61.75103,dist:123,mag:1.81,color:0xffd2a1,name:"Dubhe (α)",hip:54061,sp:"F7V comp",M:-1.07},
+      merak:{ra:11.03068,dec:56.38243,dist:79.7,mag:2.34,color:0xaabfff,name:"Merak (β)",hip:53910,sp:"A1V",M:0.40},
+      phecda:{ra:11.89717,dec:53.69476,dist:83.2,mag:2.41,color:0xaabfff,name:"Phecda (γ)",hip:58001,sp:"A0V SB",M:0.38},
+      megrez:{ra:12.25709,dec:57.03262,dist:80.5,mag:3.32,color:0xcad7ff,name:"Megrez (δ)",hip:59774,sp:"A3Vvar",M:1.36},
+      alioth:{ra:12.90047,dec:55.95982,dist:82.6,mag:1.76,color:0xaabfff,name:"Alioth (ε)",hip:62956,sp:"A0p",M:-0.26},
+      mizar:{ra:13.39875,dec:54.92536,dist:85.8,mag:2.23,color:0xaabfff,name:"Mizar (ζ)",hip:65378,sp:"A2V",M:0.13},
+      alkaid:{ra:13.79235,dec:49.31327,dist:104,mag:1.85,color:0x9bb0ff,name:"Alkaid (η)",hip:67301,sp:"B3V SB",M:-0.67},
+      oomicron:{ra:8.50443,dec:60.71817,dist:179,mag:3.35,color:0xaabfff,name:"Muscida (ο)",hip:41704,sp:"G4II-III",M:-0.35},
+      theta:{ra:9.54772,dec:51.67730,dist:44.0,mag:3.17,color:0xfff4ea,name:"θ UMa",hip:46853,sp:"F6IV",M:2.52},
+      iota:{ra:8.98683,dec:48.04183,dist:47.3,mag:3.12,color:0xfff4ea,name:"Talitha (ι)",hip:44127,sp:"A7IV",M:2.31},
+      kappa:{ra:9.06043,dec:47.15653,dist:358,mag:3.57,color:0xaabfff,name:"κ UMa",hip:44471,sp:"A1Vn",M:-1.64},
+      lambda:{ra:10.28495,dec:42.91436,dist:138,mag:3.45,color:0xaabfff,name:"Tania Borealis (λ)",hip:50372,sp:"A2IV",M:0.33},
+      mu:{ra:10.37215,dec:41.49952,dist:230,mag:3.06,color:0xaabfff,name:"Tania Australis (μ)",hip:50801,sp:"M0III SB",M:-1.19},
+      nu:{ra:11.30798,dec:33.09431,dist:399,mag:3.49,color:0xaabfff,name:"Alula Borealis (ν)",hip:55219,sp:"K3III SB",M:-1.95},
+      xi:{ra:11.30312,dec:31.52879,dist:34,mag:3.79,color:0xfff4ea,name:"Alula Australis (ξ)",hip:55203,sp:"G0 Ve"}
+    },
+    lines:[["dubhe","merak"],["merak","phecda"],["phecda","megrez"],["megrez","dubhe"],["megrez","alioth"],["alioth","mizar"],["mizar","alkaid"],["oomicron","theta"],["theta","iota"],["iota","kappa"],["theta","lambda"],["lambda","mu"],["mu","nu"],["nu","xi"],["lambda","dubhe"]]
+  },
+  "Orione": {
+    desc: "Orione è un caso spettacolare: Betelgeuse è a circa 500-650 a.l. (la stima varia), Rigel a circa 860 a.l. e le stelle della Cintura tra circa 700 e 2000 a.l. a seconda della stella e della misura. La costellazione 'piatta' che vediamo è un'illusione prospettica.",
+    stars: {
+      betelgeuse:{ra:5.91953,dec:7.40706,dist:498,mag:0.45,color:0xffcc6f,name:"Betelgeuse (α)",hip:27989,sp:"M2Ib",M:-5.47},
+      rigel:{ra:5.24230,dec:-8.20164,dist:863,mag:0.18,color:0x9bb0ff,name:"Rigel (β)",hip:24436,sp:"B8Ia",M:-6.93},
+      bellatrix:{ra:5.41885,dec:6.34970,dist:252,mag:1.64,color:0x9bb0ff,name:"Bellatrix (γ)",hip:25336,sp:"B2III",M:-2.80},
+      mintaka:{ra:5.53345,dec:-0.29909,dist:692,mag:2.25,color:0x9bb0ff,name:"Mintaka (δ)",hip:25930,sp:"O9.5II",M:-4.38},
+      alnilam:{ra:5.60356,dec:-1.20192,dist:1977,mag:1.69,color:0x9bb0ff,name:"Alnilam (ε)",hip:26311,sp:"B0Ia",M:-7.22},
+      alnitak:{ra:5.67931,dec:-1.94257,dist:736,mag:1.74,color:0x9bb0ff,name:"Alnitak (ζ)",hip:26727,sp:"O9.5Ib SB",M:-5.03},
+      saiph:{ra:5.79594,dec:-9.66961,dist:647,mag:2.07,color:0x9bb0ff,name:"Saiph (κ)",hip:27366,sp:"B0.5Iavar",M:-4.42}
+    },
+    lines:[["betelgeuse","bellatrix"],["bellatrix","mintaka"],["mintaka","alnilam"],["alnilam","alnitak"],["alnitak","betelgeuse"],["alnitak","saiph"],["saiph","rigel"],["rigel","mintaka"]]
+  },
+  "Cassiopeia": {
+    desc: "La costellazione di Cassiopeia ha la forma di una 'W' (o 'M'). Le sue 5 stelle principali sono distribuite tra 54 e 550 anni luce.",
+    stars: {
+      schedar:{ra:0.67512,dec:56.53733,dist:228,mag:2.24,color:0xffd2a1,name:"Schedar (α)",hip:3179,sp:"K0II-IIIvar",M:-1.99},
+      caph:{ra:0.15289,dec:59.14978,dist:54.7,mag:2.28,color:0xf8f7ff,name:"Caph (β)",hip:746,sp:"F2III-IV",M:1.16},
+      gamma:{ra:0.94514,dec:60.71674,dist:549,mag:2.15,color:0x9bb0ff,name:"γ Cas",hip:4427,sp:"B0IV:evar",M:-3.98},
+      ruchbah:{ra:1.43022,dec:60.23528,dist:99.4,mag:2.66,color:0xaabfff,name:"Ruchbah (δ)",hip:6686,sp:"A5Vv SB",M:0.24},
+      segin:{ra:1.90658,dec:63.67010,dist:412,mag:3.35,color:0x9bb0ff,name:"Segin (ε)",hip:8886,sp:"B2pvar",M:-2.16}
+    },
+    lines:[["caph","schedar"],["schedar","gamma"],["gamma","ruchbah"],["ruchbah","segin"]]
+  },
+  "Cigno": {
+    desc: "Il Cigno è dominato da Deneb, una supergigante a oltre 1400 anni luce (alcune stime arrivano a 2600), mentre Gienah è a soli 73 a.l. Il contrasto di profondità è enorme.",
+    stars: {
+      deneb:{ra:20.69053,dec:45.28034,dist:1412,mag:1.25,color:0xaabfff,name:"Deneb (α)",hip:102098,sp:"A2Ia",M:-6.93},
+      sadr:{ra:20.37047,dec:40.25668,dist:1832,mag:2.23,color:0xf8f7ff,name:"Sadr (γ)",hip:100453,sp:"F8Ib",M:-6.52},
+      albireo:{ra:19.51202,dec:27.95968,dist:434,mag:3.05,color:0xffd2a1,name:"Albireo (β)",hip:95947,sp:"K3II+...",M:-2.57},
+      delta:{ra:19.74957,dec:45.13081,dist:165,mag:2.86,color:0xaabfff,name:"δ Cyg",hip:97165,sp:"B9.5III",M:-0.66},
+      gienah:{ra:20.77018,dec:33.97026,dist:72.7,mag:2.48,color:0xffd2a1,name:"Gienah (ε)",hip:102488,sp:"K0III",M:0.74}
+    },
+    lines:[["deneb","sadr"],["sadr","albireo"],["delta","sadr"],["sadr","gienah"]]
+  },
+  "Lira": {
+    desc: "Vega, la quinta stella più luminosa del cielo, è a soli 25 anni luce. Le altre stelle della Lira sono molto più lontane (Sheliak a 960 a.l.).",
+    stars: {
+      vega:{ra:18.61564,dec:38.78369,dist:25.0,mag:0.03,color:0xaabfff,name:"Vega (α)",hip:91262,sp:"A0Vvar",M:0.60},
+      sheliak:{ra:18.83467,dec:33.36267,dist:962,mag:3.52,color:0x9bb0ff,name:"Sheliak (β)",hip:92420,sp:"A8:V comp SB",M:-3.83},
+      sulafat:{ra:18.98240,dec:32.68956,dist:620,mag:3.25,color:0xaabfff,name:"Sulafat (γ)",hip:93194,sp:"B9III",M:-3.15},
+      delta:{ra:18.90841,dec:36.89861,dist:736,mag:4.22,color:0xffcc6f,name:"δ Lyr",hip:92791,sp:"M4IIvar",M:-2.55},
+      zeta:{ra:18.74621,dec:37.60511,dist:156,mag:4.34,color:0xaabfff,name:"ζ Lyr",hip:91971,sp:"Am",M:0.94}
+    },
+    lines:[["vega","zeta"],["vega","delta"],["zeta","sheliak"],["delta","sulafat"],["sheliak","sulafat"],["zeta","delta"]]
+  },
+  "Croce del Sud": {
+    desc: "La Croce del Sud è la costellazione più piccola dell'intero cielo. Gacrux è a soli 89 a.l., mentre Acrux e Imai sono a oltre 320 a.l.",
+    stars: {
+      acrux:{ra:12.44331,dec:-63.09909,dist:322,mag:0.77,color:0x9bb0ff,name:"Acrux (α)",hip:60718,sp:"B0.5IV",M:-4.20},
+      mimosa:{ra:12.79536,dec:-59.68876,dist:279,mag:1.25,color:0x9bb0ff,name:"Mimosa (β)",hip:62434,sp:"B0.5III",M:-3.41},
+      gacrux:{ra:12.51943,dec:-57.11321,dist:88.6,mag:1.59,color:0xffcc6f,name:"Gacrux (γ)",hip:61084,sp:"M4III",M:-0.58},
+      imai:{ra:12.25243,dec:-58.74893,dist:345,mag:2.79,color:0x9bb0ff,name:"Imai (δ)",hip:59747,sp:"B2IV",M:-2.33}
+    },
+    lines:[["acrux","gacrux"],["mimosa","imai"]]
+  },
+  "Auriga": {
+    desc: "L'Auriga contiene Capella, la sesta stella più luminosa del cielo, a 42 a.l. Epsilon Aur è a 2037 a.l. La costellazione ha una forma a pentagono.",
+    stars: {
+      capella:{ra:5.27815,dec:45.99799,dist:42.8,mag:0.08,color:0xfff4ea,name:"Capella (α)",hip:24608,sp:"M1: comp",M:-0.51},
+      menkalinan:{ra:5.99215,dec:44.94743,dist:81.1,mag:1.90,color:0xaabfff,name:"Menkalinan (β)",hip:28360,sp:"A2V",M:-0.08},
+      theta:{ra:5.99535,dec:37.21258,dist:166,mag:2.65,color:0xaabfff,name:"Mahasim (θ)",hip:28380,sp:"A0p Si",M:-0.88},
+      iota:{ra:4.94989,dec:33.16609,dist:493,mag:2.69,color:0xffcc6f,name:"Hassaleh (ι)",hip:23015,sp:"K3IIvar",M:-3.21},
+      epsilon:{ra:5.03282,dec:43.82331,dist:2132,mag:3.03,color:0xfff4ea,name:"Almaaz (ε)",hip:23416,sp:"F0Ia",M:-6.05},
+      eta:{ra:5.10858,dec:41.23447,dist:243,mag:3.18,color:0xaabfff,name:"Hoedus II (η)",hip:23767,sp:"B3V",M:-1.18},
+      zeta:{ra:5.04130,dec:41.07584,dist:786,mag:3.69,color:0xffcc6f,name:"Saclateni (ζ)",hip:23453,sp:"K4II comp",M:-3.22},
+      delta:{ra:5.99211,dec:54.28466,dist:126,mag:3.72,color:0xffcc6f,name:"Prajapati (δ)",hip:28358,sp:"K0III",M:0.79}
+    },
+    lines:[["capella","menkalinan"],["menkalinan","theta"],["theta","iota"],["iota","capella"],["capella","epsilon"],["epsilon","eta"],["eta","zeta"],["zeta","capella"],["menkalinan","delta"]]
+  },
+  "Boote": {
+    desc: "Boote contiene Arturo, la quarta stella più luminosa del cielo, a soli 37 a.l. La costellazione ha una forma a aquilone e include Izar, una bella doppia colorata.",
+    stars: {
+      arcturus:{ra:14.26103,dec:19.18241,dist:36.7,mag:-0.05,color:0xffcc6f,name:"Arturo (α)",hip:69673,sp:"K2IIIp",M:-0.31},
+      izar:{ra:14.74978,dec:27.07422,dist:203,mag:2.35,color:0xffcc6f,name:"Izar (ε)",hip:72105,sp:"A0",M:-1.62},
+      muphrid:{ra:13.91141,dec:18.39772,dist:37.2,mag:2.68,color:0xfff4ea,name:"Muphrid (η)",hip:67927,sp:"G0IV",M:2.40},
+      seginus:{ra:14.53464,dec:38.30825,dist:86.8,mag:3.04,color:0xaabfff,name:"Seginus (γ)",hip:71075,sp:"A7IIIvar",M:0.92},
+      delta:{ra:15.25838,dec:33.31483,dist:122,mag:3.46,color:0xffcc6f,name:"Princeps (δ)",hip:74666,sp:"G8III",M:0.60},
+      rho:{ra:14.53050,dec:30.37144,dist:160,mag:3.57,color:0xffcc6f,name:"ρ Boo",hip:71053,sp:"K3III",M:0.12},
+      beta:{ra:15.03244,dec:40.39057,dist:225,mag:3.49,color:0xffcc6f,name:"Nekkar (β)",hip:73555,sp:"G8III",M:-0.71}
+    },
+    lines:[["arcturus","muphrid"],["muphrid","izar"],["izar","delta"],["delta","seginus"],["seginus","beta"],["beta","delta"],["delta","rho"],["rho","arcturus"],["arcturus","izar"]]
+  },
+  "Cane Maggiore": {
+    desc: "Il Cane Maggiore contiene Sirio, la stella più luminosa del cielo notturno, a soli 8,6 a.l. Include anche Wezen (1790 a.l.) e Aludra (circa 2000 a.l.).",
+    stars: {
+      sirius:{ra:6.75248,dec:-16.71612,dist:8.6,mag:-1.44,color:0xaabfff,name:"Sirio (α)",hip:32349,sp:"A0m...",M:1.45},
+      adhara:{ra:6.97710,dec:-28.97208,dist:405,mag:1.50,color:0x9bb0ff,name:"Adhara (ε)",hip:33579,sp:"B2II",M:-3.97},
+      wezen:{ra:7.13986,dec:-26.39320,dist:1607,mag:1.83,color:0xfff4ea,name:"Wezen (δ)",hip:34444,sp:"F8Ia",M:-6.63},
+      mirzam:{ra:6.37833,dec:-17.95592,dist:493,mag:1.98,color:0x9bb0ff,name:"Mirzam (β)",hip:30324,sp:"B1II/III",M:-3.92},
+      aludra:{ra:7.40158,dec:-29.30310,dist:1989,mag:2.45,color:0x9bb0ff,name:"Aludra (η)",hip:35904,sp:"B5Ia",M:-6.48},
+      phurad:{ra:6.33855,dec:-30.06337,dist:362,mag:3.02,color:0x9bb0ff,name:"Phurad (ζ)",hip:30122,sp:"B2.5V",M:-2.21}
+    },
+    lines:[["sirius","mirzam"],["sirius","adhara"],["adhara","wezen"],["wezen","aludra"],["mirzam","phurad"],["phurad","adhara"]]
+  },
+  "Perseo": {
+    desc: "Perseo è famosa per la stella Algol (la 'Stella del Diavolo'), una binaria a eclisse. Mirfak è la più luminosa a circa 510 a.l., mentre Algol è a 93 a.l.",
+    stars: {
+      mirfak:{ra:3.40538,dec:49.86118,dist:506,mag:1.79,color:0xfff4ea,name:"Mirfak (α)",hip:15863,sp:"F5Ib",M:-4.17},
+      algol:{ra:3.13615,dec:40.95565,dist:89.9,mag:2.09,color:0x9bb0ff,name:"Algol (β)",hip:14576,sp:"B8V",M:-0.11},
+      zeta:{ra:3.90220,dec:31.88364,dist:752,mag:2.84,color:0x9bb0ff,name:"Atik (ζ)",hip:18246,sp:"B1Ib",M:-3.97},
+      epsilon:{ra:3.96423,dec:40.01022,dist:638,mag:2.90,color:0x9bb0ff,name:"ε Per",hip:18532,sp:"B0.5V",M:-3.56},
+      gamma:{ra:3.07994,dec:53.50644,dist:243,mag:2.91,color:0xffcc6f,name:"γ Per",hip:14328,sp:"G8III+...",M:-1.45},
+      delta:{ra:3.71542,dec:47.78755,dist:516,mag:3.01,color:0x9bb0ff,name:"δ Per",hip:17358,sp:"B5III SB",M:-2.99},
+      rho:{ra:3.08627,dec:38.84027,dist:308,mag:3.32,color:0xffcc6f,name:"ρ Per",hip:14354,sp:"M3IIIvar",M:-1.55}
+    },
+    lines:[["mirfak","gamma"],["gamma","delta"],["delta","epsilon"],["epsilon","zeta"],["zeta","algol"],["algol","rho"],["rho","mirfak"],["mirfak","delta"]]
+  },
+  "Aquila": {
+    desc: "L'Aquila contiene Altair, una delle stelle più vicine a noi (16,8 a.l.) e vertice del Triangolo Estivo. Include anche Tarazed (circa 400 a.l.).",
+    stars: {
+      altair:{ra:19.84639,dec:8.86832,dist:16.7,mag:0.76,color:0xaabfff,name:"Altair (α)",hip:97649,sp:"A7IV-V",M:2.21},
+      tarazed:{ra:19.77099,dec:10.61326,dist:395,mag:2.72,color:0xffcc6f,name:"Tarazed (γ)",hip:97278,sp:"K3II",M:-2.69},
+      okab:{ra:19.09017,dec:13.86348,dist:83.0,mag:2.99,color:0xaabfff,name:"Okab (ζ)",hip:93747,sp:"A0Vn",M:0.96},
+      theta:{ra:20.18841,dec:-0.82146,dist:286,mag:3.24,color:0xaabfff,name:"θ Aql",hip:99473,sp:"B9.5III",M:-1.48},
+      delta:{ra:19.42497,dec:3.11477,dist:50.6,mag:3.36,color:0xfff4ea,name:"δ Aql",hip:95501,sp:"F0IV",M:2.40},
+      lambda:{ra:19.10415,dec:-4.88255,dist:124,mag:3.43,color:0xaabfff,name:"λ Aql",hip:93805,sp:"B9Vn",M:0.54}
+    },
+    lines:[["altair","tarazed"],["tarazed","okab"],["okab","delta"],["delta","theta"],["theta","lambda"],["lambda","altair"]]
+  }
+};
+
+const ASTERISMS = {
+  "Grande Carro": {
+    desc: "Il Grande Carro NON è una costellazione: è un asterismo di 7 stelle che fa parte dell'Orsa Maggiore. Punta verso Polaris (la stella polare).",
+    stars: {
+      dubhe:{ra:11.06216,dec:61.75103,dist:123,mag:1.81,color:0xffd2a1,name:"Dubhe (α)",hip:54061,sp:"F7V comp",M:-1.07},
+      merak:{ra:11.03068,dec:56.38243,dist:79.7,mag:2.34,color:0xaabfff,name:"Merak (β)",hip:53910,sp:"A1V",M:0.40},
+      phecda:{ra:11.89717,dec:53.69476,dist:83.2,mag:2.41,color:0xaabfff,name:"Phecda (γ)",hip:58001,sp:"A0V SB",M:0.38},
+      megrez:{ra:12.25709,dec:57.03262,dist:80.5,mag:3.32,color:0xcad7ff,name:"Megrez (δ)",hip:59774,sp:"A3Vvar",M:1.36},
+      alioth:{ra:12.90047,dec:55.95982,dist:82.6,mag:1.76,color:0xaabfff,name:"Alioth (ε)",hip:62956,sp:"A0p",M:-0.26},
+      mizar:{ra:13.39875,dec:54.92536,dist:85.8,mag:2.23,color:0xaabfff,name:"Mizar (ζ)",hip:65378,sp:"A2V",M:0.13},
+      alkaid:{ra:13.79235,dec:49.31327,dist:104,mag:1.85,color:0x9bb0ff,name:"Alkaid (η)",hip:67301,sp:"B3V SB",M:-0.67}
+    },
+    lines:[["dubhe","merak"],["merak","phecda"],["phecda","megrez"],["megrez","dubhe"],["megrez","alioth"],["alioth","mizar"],["mizar","alkaid"]]
+  },
+  "Cintura di Orione": {
+    desc: "Le tre stelle della Cintura di Orione sembrano allineate e vicine, ma in realtà sono separate da centinaia di anni luce.",
+    stars: {
+      mintaka:{ra:5.53345,dec:-0.29909,dist:692,mag:2.25,color:0x9bb0ff,name:"Mintaka",hip:25930,sp:"O9.5II",M:-4.38},
+      alnilam:{ra:5.60356,dec:-1.20192,dist:1977,mag:1.69,color:0x9bb0ff,name:"Alnilam",hip:26311,sp:"B0Ia",M:-7.22},
+      alnitak:{ra:5.67931,dec:-1.94257,dist:736,mag:1.74,color:0x9bb0ff,name:"Alnitak",hip:26727,sp:"O9.5Ib SB",M:-5.03}
+    },
+    lines:[["mintaka","alnilam"],["alnilam","alnitak"]]
+  },
+  "Triangolo Estivo": {
+    desc: "Il Triangolo Estivo unisce tre stelle di TRE costellazioni diverse: Vega (Lira), Deneb (Cigno) e Altair (Aquila).",
+    stars: {
+      vega:{ra:18.61564,dec:38.78369,dist:25.0,mag:0.03,color:0xaabfff,name:"Vega (Lira)",hip:91262,sp:"A0Vvar",M:0.60},
+      deneb:{ra:20.69053,dec:45.28034,dist:1412,mag:1.25,color:0xaabfff,name:"Deneb (Cigno)",hip:102098,sp:"A2Ia",M:-6.93},
+      altair:{ra:19.84639,dec:8.86832,dist:16.7,mag:0.76,color:0xaabfff,name:"Altair (Aquila)",hip:97649,sp:"A7IV-V",M:2.21}
+    },
+    lines:[["vega","deneb"],["deneb","altair"],["altair","vega"]]
+  },
+  "Croce del Nord (Cigno)": {
+    desc: "La Croce del Nord è l'asterismo più riconoscibile del Cigno. Deneb è a oltre 1400 a.l., Gienah a soli 73 a.l.",
+    stars: {
+      deneb:{ra:20.69053,dec:45.28034,dist:1412,mag:1.25,color:0xaabfff,name:"Deneb",hip:102098,sp:"A2Ia",M:-6.93},
+      sadr:{ra:20.37047,dec:40.25668,dist:1832,mag:2.23,color:0xf8f7ff,name:"Sadr",hip:100453,sp:"F8Ib",M:-6.52},
+      albireo:{ra:19.51202,dec:27.95968,dist:434,mag:3.05,color:0xffd2a1,name:"Albireo",hip:95947,sp:"K3II+...",M:-2.57},
+      delta:{ra:19.74957,dec:45.13081,dist:165,mag:2.86,color:0xaabfff,name:"δ Cyg",hip:97165,sp:"B9.5III",M:-0.66},
+      gienah:{ra:20.77018,dec:33.97026,dist:72.7,mag:2.48,color:0xffd2a1,name:"Gienah",hip:102488,sp:"K0III",M:0.74}
+    },
+    lines:[["deneb","sadr"],["sadr","albireo"],["delta","sadr"],["sadr","gienah"]]
+  },
+  "W di Cassiopea": {
+    desc: "La 'W' è l'asterismo formato dalle 5 stelle più brillanti di Cassiopea. Caph è a 55 a.l. e Gamma Cas a 550 a.l.",
+    stars: {
+      caph:{ra:0.15289,dec:59.14978,dist:54.7,mag:2.28,color:0xf8f7ff,name:"Caph",hip:746,sp:"F2III-IV",M:1.16},
+      schedar:{ra:0.67512,dec:56.53733,dist:228,mag:2.24,color:0xffd2a1,name:"Schedar",hip:3179,sp:"K0II-IIIvar",M:-1.99},
+      gamma:{ra:0.94514,dec:60.71674,dist:549,mag:2.15,color:0x9bb0ff,name:"Gamma Cas",hip:4427,sp:"B0IV:evar",M:-3.98},
+      ruchbah:{ra:1.43022,dec:60.23528,dist:99.4,mag:2.66,color:0xaabfff,name:"Ruchbah",hip:6686,sp:"A5Vv SB",M:0.24},
+      segin:{ra:1.90658,dec:63.67010,dist:412,mag:3.35,color:0x9bb0ff,name:"Segin",hip:8886,sp:"B2pvar",M:-2.16}
+    },
+    lines:[["caph","schedar"],["schedar","gamma"],["gamma","ruchbah"],["ruchbah","segin"]]
+  },
+  "Pleiadi (M45)": {
+    desc: "Le Pleiadi sono un ammasso aperto. Sono tutte a circa 400 anni luce: in 3D formano una struttura compatta.",
+    stars: {
+      alcyone:{ra:3.79141,dec:24.10514,dist:403,mag:2.85,color:0xaabfff,name:"Alcyone",hip:17702,sp:"B7III",M:-2.61},
+      atlas:{ra:3.81937,dec:24.05342,dist:382,mag:3.62,color:0xaabfff,name:"Atlas",hip:17847,sp:"B8III",M:-1.73},
+      electra:{ra:3.74793,dec:24.11334,dist:405,mag:3.72,color:0xaabfff,name:"Electra",hip:17499,sp:"B6III",M:-1.75},
+      maia:{ra:3.76378,dec:24.36775,dist:383,mag:3.87,color:0xaabfff,name:"Maia",hip:17573,sp:"B8III",M:-1.48},
+      merope:{ra:3.77210,dec:23.94836,dist:380,mag:4.14,color:0xaabfff,name:"Merope",hip:17608,sp:"B6IV",M:-1.19},
+      taygeta:{ra:3.75347,dec:24.46728,dist:409,mag:4.30,color:0xaabfff,name:"Taygeta",hip:17531,sp:"B6V",M:-1.19},
+      pleione:{ra:3.81978,dec:24.13671,dist:382,mag:5.05,color:0xaabfff,name:"Pleione",hip:17851,sp:"B7p",M:-0.29}
+    },
+    lines:[]
+  },
+  "Quadrato di Pegaso": {
+    desc: "Il Quadrato di Pegaso è formato da 4 stelle brillanti, di cui una — Alpheratz — appartiene in realtà ad Andromeda!",
+    stars: {
+      alpheratz:{ra:0.13979,dec:29.09043,dist:97.0,mag:2.07,color:0xaabfff,name:"Alpheratz (α And)",hip:677,sp:"B9p",M:-0.30},
+      scheat:{ra:23.06290,dec:28.08279,dist:196,mag:2.44,color:0xffcc6f,name:"Scheat (β Peg)",hip:113881,sp:"M2II-IIIvar",M:-1.45},
+      markab:{ra:23.07935,dec:15.20526,dist:133,mag:2.49,color:0xaabfff,name:"Markab (α Peg)",hip:113963,sp:"B9.5III",M:-0.57},
+      algenib:{ra:0.22060,dec:15.18360,dist:392,mag:2.83,color:0xaabfff,name:"Algenib (γ Peg)",hip:1067,sp:"B2IV",M:-2.57}
+    },
+    lines:[["alpheratz","scheat"],["scheat","markab"],["markab","algenib"],["algenib","alpheratz"]]
+  },
+  "Esagono Invernale": {
+    desc: "L'Esagono Invernale coinvolge sei costellazioni: Sirio, Procione, Polluce, Capella, Aldebaran, Rigel.",
+    stars: {
+      sirius:{ra:6.75248,dec:-16.71612,dist:8.6,mag:-1.44,color:0xaabfff,name:"Sirio",hip:32349,sp:"A0m...",M:1.45},
+      procyon:{ra:7.65503,dec:5.22499,dist:11.5,mag:0.40,color:0xfff4ea,name:"Procione",hip:37279,sp:"F5IV-V",M:2.67},
+      pollux:{ra:7.75528,dec:28.02620,dist:33.8,mag:1.16,color:0xffcc6f,name:"Polluce",hip:37826,sp:"K0IIIvar",M:1.08},
+      capella:{ra:5.27815,dec:45.99799,dist:42.8,mag:0.08,color:0xfff4ea,name:"Capella",hip:24608,sp:"M1: comp",M:-0.51},
+      aldebaran:{ra:4.59868,dec:16.50930,dist:66.6,mag:0.87,color:0xffcc6f,name:"Aldebaran",hip:21421,sp:"K5III",M:-0.68},
+      rigel:{ra:5.24230,dec:-8.20164,dist:863,mag:0.18,color:0x9bb0ff,name:"Rigel",hip:24436,sp:"B8Ia",M:-6.93}
+    },
+    lines:[["sirius","procyon"],["procyon","pollux"],["pollux","capella"],["capella","aldebaran"],["aldebaran","rigel"],["rigel","sirius"]]
+  },
+  "Triangolo Invernale": {
+    desc: "Il Triangolo Invernale è formato da Sirio (8,6 a.l.), Betelgeuse (circa 500-650 a.l.) e Procione (11,5 a.l.).",
+    stars: {
+      sirius:{ra:6.75248,dec:-16.71612,dist:8.6,mag:-1.44,color:0xaabfff,name:"Sirio",hip:32349,sp:"A0m...",M:1.45},
+      betelgeuse:{ra:5.91953,dec:7.40706,dist:498,mag:0.45,color:0xffcc6f,name:"Betelgeuse",hip:27989,sp:"M2Ib",M:-5.47},
+      procyon:{ra:7.65503,dec:5.22499,dist:11.5,mag:0.40,color:0xfff4ea,name:"Procione",hip:37279,sp:"F5IV-V",M:2.67}
+    },
+    lines:[["sirius","betelgeuse"],["betelgeuse","procyon"],["procyon","sirius"]]
+  }
+};
+
+const STAR_DETAILS = {
+  "Betelgeuse":{spectral:"M1-2Ia",temp:3500,lum:90000,radius:900,mass:16,curiosity:"Se fosse al posto del Sole, si estenderebbe oltre l'orbita di Marte."},
+  "Rigel":{spectral:"B8Ia",temp:12100,lum:120000,radius:78,mass:21,curiosity:"È la stella più luminosa di Orione, nonostante il nome Bayer β."},
+  "Vega":{spectral:"A0Va",temp:9600,lum:40,radius:2.8,mass:2.1,curiosity:"È stata la prima stella fotografata (1850)."},
+  "Sirio":{spectral:"A1V",temp:9940,lum:25,radius:1.7,mass:2.1,curiosity:"Ha una compagna, Sirio B, una nana bianca."},
+  "Antares":{spectral:"M1.5Iab",temp:3600,lum:75000,radius:680,mass:12,curiosity:"Il suo nome significa 'rivale di Marte' per il colore."},
+  "Deneb":{spectral:"A2Ia",temp:8525,lum:196000,radius:203,mass:19,curiosity:"Brilla come 196.000 Soli."},
+  "Altair":{spectral:"A7Vn",temp:7550,lum:11,radius:1.8,mass:1.8,curiosity:"Ruota così veloce (286 km/s) da essere schiacciata ai poli."},
+  "Arcturus":{spectral:"K1.5III",temp:4286,lum:170,radius:25,mass:1.1,curiosity:"Stella più luminosa dell'emisfero nord."},
+  "Capella":{spectral:"G8III+G0III",temp:4970,lum:79,radius:11.98,mass:2.6,curiosity:"Sistema di 4 stelle."},
+  "Pollux":{spectral:"K0III",temp:4666,lum:43,radius:8.8,mass:1.9,curiosity:"Ha un pianeta confermato, Thestias."},
+  "Castor":{spectral:"A1V+A2Vm",temp:9500,lum:30,radius:2.4,mass:2.8,curiosity:"Sistema a 6 stelle."},
+  "Spica":{spectral:"B1III-IV",temp:22400,lum:20500,radius:7.5,mass:11.4,curiosity:"Binaria spettroscopica con eclissi ogni 4 giorni."},
+  "Alnilam":{spectral:"B0Ia",temp:27000,lum:537000,radius:24,mass:40,curiosity:"La più luminosa della Cintura, ma lontanissima."},
+  "Mizar":{spectral:"A1Vp",temp:9000,lum:35,radius:2.4,mass:2.2,curiosity:"Ha una compagna visibile a occhio nudo: Alcor."},
+  "Dubhe":{spectral:"K0III",temp:4660,lum:316,radius:30,mass:4.25,curiosity:"La stella più lontana del Grande Carro (123 a.l.)."},
+  /* Nuove stelle zodiacali */
+  "Hamal":{spectral:"K2III",temp:4480,lum:55,radius:14.3,mass:1.5,curiosity:"Il suo nome significa 'montone' in arabo. Duemila anni fa il punto vernale cadeva in questa costellazione."},
+  "Aldebaran":{spectral:"K5III",temp:3910,lum:439,radius:44,mass:1.13,curiosity:"'Il Seguace' — segue le Pleiadi nel cielo. Il suo colore arancione indica una gigante fredda."},
+  "Elnath":{spectral:"B7III",temp:13600,lum:700,radius:4.2,mass:5,curiosity:"Il nome significa 'colui che cozza' — rappresenta la punta del corno del toro."},
+  "Al Tarf":{spectral:"K4III",temp:4000,lum:180,radius:33,mass:1.3,curiosity:"Il nome arabo significa 'la fine' — segna la zampa del granchio."},
+  "Zubeneschamali":{spectral:"B8V",temp:12300,lum:130,radius:2.5,mass:3.5,curiosity:"'La chela settentrionale' — era un tempo parte dello Scorpione."},
+  "Zubenelgenubi":{spectral:"A3IV",temp:8600,lum:36,radius:5.4,mass:2.4,curiosity:"'La chela meridionale'. È una binaria spettroscopica visibile come doppia con un piccolo telescopio."},
+  "Kaus Australis":{spectral:"B9.5III",temp:9200,lum:375,radius:6.5,mass:3.5,curiosity:"'L'arco meridionale'. Il centro della Via Lattea è in direzione del Sagittario, non lontano da questa stella."},
+  "Nunki":{spectral:"B2.5V",temp:18890,lum:3300,radius:5.3,mass:7,curiosity:"Il nome è di origine babilonese. È la seconda stella più luminosa del Sagittario."},
+  "Deneb Algedi":{spectral:"A7III",temp:7900,lum:8.5,radius:1.9,mass:2,curiosity:"'La coda del capro'. È vicinissima alla Terra (38,7 a.l.) e ha un sistema planetario."},
+  "Sadalsuud":{spectral:"G0Ib",temp:5700,lum:2200,radius:50,mass:5,curiosity:"'Il più fortunato dei fortunati' — nome arabo legato alla pioggia benefica."},
+  "Sadalmelik":{spectral:"G2Ib",temp:5210,lum:3000,radius:77,mass:6.5,curiosity:"'La fortuna del re'. È una delle supergiganti gialle più vicine."},
+  "Alpherg":{spectral:"G2III",temp:5000,lum:60,radius:9,mass:2.5,curiosity:"La stella più luminosa dei Pesci. Il nome deriva dall'arabo 'la coda del pesce'."},
+  "Alrescha":{spectral:"A0p",temp:9600,lum:30,radius:2.4,mass:2.3,curiosity:"'Il cordone' — unisce i due pesci. È una doppia spettroscopica visibile con piccoli telescopi."}
+};
+
+const CULTURAL_INFO = {
+  "Orsa Maggiore":{chinese:"北斗 (Běidǒu) — il 'Mestolo del Nord'.",arabic:"بنات نعش (Banāt Naʿsh) — 'le figlie del feretro'.",indigenous:"Per i Navajo è 'la Stella Maschio'; per gli Irochesi è un orso cacciato da tre cacciatori."},
+  "Orione":{chinese:"参宿 (Shēnxiù) — una delle 28 case lunari.",arabic:"الجبار (Al-Jabbār) — 'il Gigante'.",indigenous:"Per molte culture native è un gruppo di cacciatori; per gli Inca il dio del tuono."},
+  "Cassiopeia":{chinese:"王良 (Wáng Liáng) — un famoso auriga.",arabic:"ذات الكرسي (Dhāt al-Kursī) — 'la Signora del Trono'.",indigenous:"Per alcune culture polari rappresenta un gruppo di donne o un caribù."},
+  "Cigno":{chinese:"天津 (Tiānjīn) — 'il Guado Celeste'.",arabic:"الدجاجة (Al-Dajājah) — 'la Gallina'.",indigenous:"Per i Navajo è un uccello acquatico."},
+  "Lira":{chinese:"织女 (Zhīnǚ) — 'la Tessitrice'.",arabic:"النسر الواقع (An-Nasr al-Wāqiʿ) — 'l'Aquila che Piomba'.",indigenous:"Per gli aborigeni australiani collegate a miti sulla creazione."},
+  "Scorpione":{chinese:"房宿 (Fángxiù) — 'la Camera'.",arabic:"العقرب (Al-ʿAqrab) — 'lo Scorpione'.",indigenous:"Per i Maori è la coda di un pesce gigante."},
+  "Cane Maggiore":{chinese:"天狼 (Tiānláng) — 'il Lupo Celeste'.",arabic:"الشعرى (Al-Shiʿrā) — 'la Brillante'.",indigenous:"Per gli Egizi l'apparizione eliaca segnava l'inizio dell'inondazione del Nilo."},
+  "Aquila":{chinese:"河鼓 (Hégǔ) — 'il Tamburo del Fiume'.",arabic:"النسر الطائر (An-Nasr aṭ-Ṭāʾir) — 'l'Aquila che Vola'.",indigenous:"Per i Navajo Altair era parte di una costellazione di uccelli."},
+  /* Zodiaco */
+  "Ariete":{chinese:"白羊宫 (Báiyáng Gōng) — 'il Palazzo del Montone Bianco'.",arabic:"الحمل (Al-Ḥamal) — 'l'Agnello'.",indigenous:"Per molte culture rappresenta l'inizio del ciclo zodiacale, legato all'equinozio di primavera."},
+  "Toro":{chinese:"金牛宫 (Jīnniú Gōng) — 'il Palazzo del Toro d'Oro'.",arabic:"الثور (Al-Thawr) — 'il Toro'.",indigenous:"Nella mitologia greca è Zeus trasformato in toro; per i Babilonesi era il Toro celeste."},
+  "Gemelli":{chinese:"双子宫 (Shuāngzǐ Gōng) — 'il Palazzo dei Gemelli'.",arabic:"الجوزاء (Al-Jawzāʾ) — 'i Gemelli'.",indigenous:"I Greci vedevano Castore e Polluce, fratelli inseparabili."},
+  "Cancro":{chinese:"巨蟹宫 (Jùxiè Gōng) — 'il Palazzo del Granchio Gigante'.",arabic:"السرطان (Al-Saraṭān) — 'il Granchio'.",indigenous:"Nella mitologia greca è il granchio inviato da Era per combattere Ercole."},
+  "Leone":{chinese:"狮子宫 (Shīzǐ Gōng) — 'il Palazzo del Leone'.",arabic:"الأسد (Al-Asad) — 'il Leone'.",indigenous:"Il Leone di Nemea, ucciso da Ercole come prima delle sue 12 fatiche."},
+  "Vergine":{chinese:"室女宫 (Shìnǚ Gōng) — 'il Palazzo della Fanciulla'.",arabic:"العذراء (Al-ʿAdhrāʾ) — 'la Vergine'.",indigenous:"Associata a Demetra (dea del grano) o Astrea (dea della giustizia)."},
+  "Bilancia":{chinese:"天秤宫 (Tiānchèng Gōng) — 'il Palazzo della Bilancia Celeste'.",arabic:"الميزان (Al-Mīzān) — 'la Bilancia'.",indigenous:"Presso i Romani era la bilancia della giustizia; un tempo erano le chele dello Scorpione."},
+  "Scorpione":{chinese:"天蝎宫 (Tiānxiē Gōng) — 'il Palazzo dello Scorpione Celeste'.",arabic:"العقرب (Al-ʿAqrab) — 'lo Scorpione'.",indigenous:"Lo scorpione che uccise Orione, secondo il mito greco."},
+  "Sagittario":{chinese:"人马宫 (Rénmǎ Gōng) — 'il Palazzo del Centauro'.",arabic:"القوس (Al-Qaws) — 'l'Arco'.",indigenous:"Il centauro Chirone, saggio insegnante di eroi come Achille."},
+  "Capricorno":{chinese:"摩羯宫 (Mójié Gōng) — 'il Palazzo del Capricorno'.",arabic:"الجدي (Al-Jady) — 'il Capretto'.",indigenous:"La capra Amaltea che allattò Zeus; o Pan trasformato in pesce-capra."},
+  "Acquario":{chinese:"宝瓶宫 (Bǎopíng Gōng) — 'il Palazzo del Vaso Prezioso'.",arabic:"الدلو (Al-Dalw) — 'il Secchio'.",indigenous:"Ganimede, il coppiere degli dei, o Enki nella tradizione mesopotamica."},
+  "Pesci":{chinese:"双鱼宫 (Shuāngyú Gōng) — 'il Palazzo dei Due Pesci'.",arabic:"الحوت (Al-Ḥūt) — 'la Balena'.",indigenous:"Afrodite e Eros trasformati in pesci per sfuggire a Tifone."}
+};
+
+/* Ordine zodiacale tradizionale */
+const ZODIAC_ORDER = ["Ariete","Toro","Gemelli","Cancro","Leone","Vergine","Bilancia","Scorpione","Sagittario","Capricorno","Acquario","Pesci"];
+
+/* Palette colori per le linee delle costellazioni */
+const LAYER_PALETTE = [0x7fa8ff,0xffa87f,0xa8ff7f,0xff7fa8,0xffcc44,0x44ffcc,0xcc44ff,0xff8844,0x44ff88,0x8844ff,0xff6666,0x66ff66,0x6666ff,0xffaa66,0x66aaff,0xffd966,0xd966ff,0x66ffd9,0xff9999,0x99ff99];
+const KEY_COLORS = {};
+function getLayerColor(key) {
+  if (KEY_COLORS[key]) return KEY_COLORS[key];
+  const idx = Object.keys(KEY_COLORS).length % LAYER_PALETTE.length;
+  KEY_COLORS[key] = LAYER_PALETTE[idx];
+  return KEY_COLORS[key];
+}
+
+/* ============================================================
+   STATO
+   ============================================================ */
+let scene2D, scene3D, camera2D, camera3D, renderer, labelRenderer;
+let controls2D, controls3D;
+let group2D, group3D, lineGroup2D, lineGroup3D, labelGroup2D, labelGroup3D;
+let sunGroup, ringsGroup, milkyWay, bgStars2D, bgStars3D;
+let currentMode = '3d';
+let ringsVisible = false, milkyWayVisible = false;
+let tourActive = false;
+let tourState = null;
+let tourHighlight = null;
+let tourTrail = null;
+let activeValue = null;
+let visibleKeys = new Set();
+const ptrs = new Map(); let pinchD = 0;
+let cameraE, starScale = 0.3, downX = 0, downY = 0, drag2D = null;
+const view2D = { yaw: 0, pitch: 0 };
+const tourFactor = () => 0.5 * Math.pow(10, parseFloat(document.getElementById('tour-dist-slider').value));
+const tourRhythm = () => parseFloat(document.getElementById('tour-rhythm-slider').value);
+let refs2D, refs3D;
+const NAME_ALIAS = { 'Polluce': 'Pollux', 'Castore': 'Castor' };
+
+const STAR_GEOMETRY = new THREE.SphereGeometry(1, 16, 16);
+const R_SKY = 300;
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function makeLabel(html, className) {
+  const div = document.createElement('div');
+  div.className = 'label ' + (className || '');
+  div.innerHTML = html;
+  const obj = new CSS2DObject(div);
+  obj.center.set(0.5, 1.1);
+  return obj;
+}
+
+let _glowTex = null;
+function makeGlowTexture() {
+  if (_glowTex) return _glowTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0.0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.2, 'rgba(255,255,255,0.6)');
+  g.addColorStop(0.5, 'rgba(255,255,255,0.15)');
+  g.addColorStop(1.0, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128);
+  _glowTex = new THREE.CanvasTexture(c);
+  return _glowTex;
+}
+
+function makeHighlightTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(64, 64, 20, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255,255,255,0)');
+  g.addColorStop(0.55, 'rgba(255,220,120,0)');
+  g.addColorStop(0.75, 'rgba(255,200,80,0.7)');
+  g.addColorStop(1, 'rgba(255,120,60,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+}
+
+function raDecToDir(ra, dec) {
+  const r = ra * 15 * Math.PI / 180;
+  const d = dec * Math.PI / 180;
+  return new THREE.Vector3(Math.cos(d) * Math.cos(r), Math.sin(d), -Math.cos(d) * Math.sin(r));
+}
+
+function createBgStars() {
+  const geo = new THREE.BufferGeometry();
+  const pos = [];
+  for (let i = 0; i < 3000; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const r = 5000;
+    pos.push(r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
+  }
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  return new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.5, sizeAttenuation: false, transparent: true, opacity: 0.55 }));
+}
+
+function createMilkyWay() {
+  const geometry = new THREE.BufferGeometry();
+  const positions = [], colors = [];
+  const tilt = 62.9 * Math.PI / 180;
+  for (let i = 0; i < 18000; i++) {
+    const t = Math.random() * Math.PI * 2;
+    const dev = (Math.random() + Math.random() + Math.random() - 1.5) * 0.22;
+    const r = 4200 + Math.random() * 400;
+    const x0 = r * Math.cos(t), z0 = r * Math.sin(t);
+    const y0 = dev * r * 0.18;
+    const y2 = y0 * Math.cos(tilt) - z0 * Math.sin(tilt);
+    const z2 = y0 * Math.sin(tilt) + z0 * Math.cos(tilt);
+    positions.push(x0, y2, z2);
+    const b = 0.4 + Math.random() * 0.5;
+    colors.push(b * 0.85, b * 0.85, b);
+  }
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  return new THREE.Points(geometry, new THREE.PointsMaterial({ size: 3.5, sizeAttenuation: false, vertexColors: true, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false }));
+}
+
+/* ============================================================
+   TOUR
+   ============================================================ */
+function smootherstep(t) { t = Math.max(0, Math.min(1, t)); return t * t * t * (t * (t * 6 - 15) + 10); }
+function bezierAt(p0, p1, p2, t) {
+  const u = 1 - t;
+  return new THREE.Vector3(
+    u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
+    u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y,
+    u * u * p0.z + 2 * u * t * p1.z + t * t * p2.z
+  );
+}
+
+function buildTourPath(data) {
+  const all = Object.keys(data.stars);
+  if (all.length < 2) return all;
+  const adj = {};
+  all.forEach(s => adj[s] = []);
+  for (const [a, b] of (data.lines || [])) if (adj[a] && adj[b]) { adj[a].push(b); adj[b].push(a); }
+  const leaves = all.filter(s => adj[s].length === 1);
+  let start = leaves.length > 0 ? leaves[0] : all[0];
+  const path = [start], visited = new Set([start]);
+  let cur = start;
+  while (path.length < all.length) {
+    const next = (adj[cur] || []).find(n => !visited.has(n));
+    if (next) { path.push(next); visited.add(next); cur = next; }
+    else {
+      const rem = all.filter(s => !visited.has(s));
+      if (rem.length === 0) break;
+      const curS = data.stars[cur];
+      const curD = raDecToDir(curS.ra, curS.dec).multiplyScalar(curS.dist);
+      let best = rem[0], bestD = Infinity;
+      for (const r of rem) {
+        const rs = data.stars[r];
+        const rD = raDecToDir(rs.ra, rs.dec).multiplyScalar(rs.dist);
+        const d = curD.distanceTo(rD);
+        if (d < bestD) { bestD = d; best = r; }
+      }
+      path.push(best); visited.add(best); cur = best;
+    }
+  }
+  return path;
+}
+
+/* TOURCAM-BEGIN */
+/* Motore di camera del viaggio guidato.
+   - Distanze sempre proporzionali al raggio reale della stella (mai dentro la sfera).
+   - Per ogni stella: la camera arriva con un avvicinamento radiale (guardando la stella, senza rotazioni), sosta
+     con lenta orbita laterale e piccolo "respiro" verticale, poi si allontana radialmente.
+     La camera sta di lato rispetto alla direzione di marcia, quindi non deve mai "sorpassare" la stella.
+   - Tra le stelle: curva Hermite con tangenti = velocita' dell'orbita (percorso continuo, senza scatti)
+     piu' un arco verso l'esterno e verso l'alto: ci si allontana, si plana, ci si riavvicina.
+   - Ogni tratto viene allungato automaticamente finche' la rotazione dello sguardo resta sotto un tetto (gradi/s)
+     e il percorso non attraversa nessuna stella. Orizzonte sempre stabile. */
+function tcSmooth(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+function tcSmoother(x) { x = Math.max(0, Math.min(1, x)); return x * x * x * (x * (x * 6 - 15) + 10); }
+function tcHermite(p0, v0, p1, v1, T, t) {
+  const s = Math.max(0, Math.min(1, t / T)), s2 = s * s, s3 = s2 * s;
+  const h00 = 2 * s3 - 3 * s2 + 1, h10 = s3 - 2 * s2 + s, h01 = -2 * s3 + 3 * s2, h11 = s3 - s2;
+  return new THREE.Vector3(
+    h00 * p0.x + h10 * T * v0.x + h01 * p1.x + h11 * T * v1.x,
+    h00 * p0.y + h10 * T * v0.y + h01 * p1.y + h11 * T * v1.y,
+    h00 * p0.z + h10 * T * v0.z + h01 * p1.z + h11 * T * v1.z);
+}
+function buildTourCam(P, Rr, center, maxDim, factor, rhythm, obstacles) {
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const N = P.length, UP = V(0, 1, 0);
+  const horiz = v => { const h = V(v.x, 0, v.z); if (h.lengthSq() < 1e-6) h.set(0, 0, 1); return h.normalize(); };
+  const LIM = 9 / rhythm;                         // tetto rotazione sguardo (gradi/s)
+  // distanza di inquadratura: ~11 raggi => la stella occupa ~19% dell'altezza; minimo assoluto 3.8 raggi
+  const Dd = Rr.map(R => Math.max(3.8 * R, 11 * R * factor));
+  const dwell = 10 * rhythm, DELTA = 0.7, ta = 0.36 * dwell;   // sosta: avvicinamento radiale, quiete, allontanamento
+
+  // lato di ripresa: perpendicolare alla direzione di marcia, dalla parte esterna della costellazione
+  const side = P.map((p, i) => {
+    const out = horiz(p.clone().sub(center));
+    const d = P[Math.min(N - 1, i + 1)].clone().sub(P[Math.max(0, i - 1)]); d.y = 0;
+    if (d.lengthSq() < 1e-4) return out;
+    d.normalize();
+    let n = out.clone().addScaledVector(d, -out.dot(d));
+    if (n.lengthSq() < 0.05) { n = V(-d.z, 0, d.x); if (n.dot(out) < 0) n.multiplyScalar(-1); }
+    return n.normalize();
+  });
+  const orb = P.map((p, i) => ({ psiC: Math.atan2(side[i].x, side[i].z), sgn: 1, D: Dd[i], phase: i * 1.7 }));
+  const orbitPos = (i, tl) => {
+    const o = orb[i], tau = tl / dwell;
+    const psi = o.psiC + o.sgn * DELTA * (tau - 0.5);
+    const ex = (1 - tcSmoother(tl / ta)) + tcSmoother((tl - (dwell - ta)) / ta);   // 1 = lontano, 0 = vicino
+    const phi = 0.2 + 0.04 * Math.sin(2 * Math.PI * tau * 0.8 + o.phase) + 0.12 * ex;
+    const D = o.D * (1.05 - 0.10 * tau + 2.0 * ex);
+    const cp = Math.cos(phi);
+    return V(P[i].x + D * Math.sin(psi) * cp, P[i].y + D * Math.sin(phi), P[i].z + D * Math.cos(psi) * cp);
+  };
+  const setSgn = i => {
+    const o = orb[i], Tn = V(Math.cos(o.psiC), 0, -Math.sin(o.psiC));
+    const ref = i < N - 1 ? P[i + 1].clone().sub(P[i]) : (i > 0 ? P[i].clone().sub(P[i - 1]) : Tn.clone());
+    o.sgn = Tn.dot(ref) >= 0 ? 1 : -1;
+  };
+  const orbClearance = i => {
+    let m = 1e9;
+    for (let k = 0; k <= 20; k++) {
+      const p = orbitPos(i, dwell * k / 20);
+      for (const o of obstacles) { if (o.pos.distanceTo(P[i]) < 1e-6) continue; m = Math.min(m, p.distanceTo(o.pos) / o.r); }
+    }
+    return m;
+  };
+  for (let i = 0; i < N; i++) {
+    setSgn(i);
+    const m0 = orbClearance(i);
+    if (m0 < 3.2) {                                // un'altra stella e' troppo vicina: prova il lato opposto
+      orb[i].psiC += Math.PI; setSgn(i);
+      if (orbClearance(i) <= m0) { orb[i].psiC -= Math.PI; setSgn(i); }
+    }
+  }
+  const sv = i => V(Math.sin(orb[i].psiC), 0, Math.cos(orb[i].psiC));
+  const orbVel = (i, atEnd) => {
+    const e = 1e-3;
+    return atEnd ? orbitPos(i, dwell).sub(orbitPos(i, dwell - e)).multiplyScalar(1 / e)
+                 : orbitPos(i, e).sub(orbitPos(i, 0)).multiplyScalar(1 / e);
+  };
+
+  // arco laterale: ampiezza orizzontale h, verticale v; la direzione ruota dal lato di partenza (a0)
+  // a quello di arrivo (a0 + dA), cosi' agli estremi ci si muove sempre in modo radiale rispetto alla stella
+  const legPos = (leg, t) => {
+    const p = tcHermite(leg.p0, leg.v0, leg.p1, leg.v1, leg.T, t);
+    const s = Math.max(0, Math.min(1, t / leg.T)), b = Math.sin(Math.PI * s), k = b * b;
+    const a = leg.a0 + leg.dA * tcSmooth(s);
+    p.x += leg.h * Math.sin(a) * k; p.z += leg.h * Math.cos(a) * k; p.y += leg.v * k;
+    return p;
+  };
+  const legClear = leg => {
+    for (let k = 0; k <= 60; k++) {
+      const pt = legPos(leg, leg.T * k / 60);
+      for (const o of obstacles) if (pt.distanceTo(o.pos) < 3.0 * o.r + 0.1) return false;
+    }
+    return true;
+  };
+  const legRate = (leg, lookFn) => {
+    const n = 90, dtm = leg.T / n; let prev = null, m = 0;
+    for (let k = 0; k <= n; k++) {
+      const f = lookFn(k / n).sub(legPos(leg, leg.T * k / n)).normalize();
+      if (prev) m = Math.max(m, Math.acos(Math.max(-1, Math.min(1, f.dot(prev)))) * 180 / Math.PI / dtm);
+      prev = f;
+    }
+    return m;
+  };
+  // allunga il tratto (e allarga l'arco) finche' e' dolce e libero da ostacoli
+  const makeLeg = (p0, v0, p1, v1, T, bulge, lookFn, lift, Tmax) => {
+    const leg = { p0, v0, p1, v1, T, h: bulge.h, v: bulge.v, a0: bulge.a0, dA: bulge.dA };
+    for (let it = 0; it < 16; it++) {
+      const clear = legClear(leg), rate = legRate(leg, lookFn);
+      if (clear && rate <= LIM) break;
+      if (!clear) leg.v += lift;
+      else if (it % 2 === 0 && leg.T < Tmax) leg.T *= 1.12;
+      else { leg.h *= 1.18; leg.v *= 1.18; }
+    }
+    return leg;
+  };
+
+  const lookOf = (seg, u) => {
+    if (seg.type === 'dwell') return P[seg.idx].clone();
+    const e = seg.type === 'transfer' ? tcSmoother((u - 0.08) / 0.84) : tcSmoother(u);
+    return seg.from.clone().lerp(seg.to, e);
+  };
+  const segs = [];
+  let t = 0;
+  const introT = 9 * rhythm, outroT = 9 * rhythm;
+  const introCam = center.clone().addScaledVector(sv(0), maxDim * 1.3).add(V(0, maxDim * 0.75, 0));
+  const outroCam = center.clone().addScaledVector(sv(N - 1), maxDim * 1.2).add(V(0, maxDim * 0.7, 0));
+  const addLegSeg = (type, idx, from, to, p0, v0, p1, v1, T, bulge, lift, Tmax) => {
+    const seg = { type, idx, from, to, t0: t };
+    seg.leg = makeLeg(p0, v0, p1, v1, T, bulge, u => lookOf(seg, u), lift, Tmax);
+    seg.t1 = t + seg.leg.T; t = seg.t1; segs.push(seg);
+  };
+
+  addLegSeg('intro', undefined, center, P[0], introCam, V(0, 0, 0), orbitPos(0, 0), orbVel(0, false), introT, { h: 0, v: 0, a0: 0, dA: 0 }, maxDim * 0.1, introT * 2.5);
+  for (let i = 0; i < N; i++) {
+    segs.push({ type: 'dwell', idx: i, t0: t, t1: t + dwell }); t += dwell;
+    if (i < N - 1) {
+      const p0 = orbitPos(i, dwell), p1 = orbitPos(i + 1, 0);
+      const chord = p0.distanceTo(p1);
+      const Dm = (Dd[i] + Dd[i + 1]) / 2;
+      let dA = orb[i + 1].psiC - orb[i].psiC; dA = Math.atan2(Math.sin(dA), Math.cos(dA));
+      const bulge = { h: 0.45 * chord + 0.8 * Dm, v: 0.10 * chord + 0.3 * Dm, a0: orb[i].psiC, dA };
+      addLegSeg('transfer', i, P[i], P[i + 1], p0, orbVel(i, true), p1, orbVel(i + 1, false),
+        (9 + 0.06 * chord) * rhythm, bulge, 0.15 * chord + Dm, 34 * rhythm);
+    }
+  }
+  addLegSeg('outro', undefined, P[N - 1], center, orbitPos(N - 1, dwell), orbVel(N - 1, true), outroCam, V(0, 0, 0),
+    outroT, { h: 0, v: maxDim * 0.05, a0: 0, dA: 0 }, maxDim * 0.1, outroT * 2.5);
+
+  const evalAt = time => {
+    let seg = segs[segs.length - 1];
+    for (const sg of segs) if (time < sg.t1) { seg = sg; break; }
+    const T = seg.t1 - seg.t0, tl = Math.max(0, Math.min(T, time - seg.t0)), u = tl / T;
+    const pos = seg.type === 'dwell' ? orbitPos(seg.idx, tl) : legPos(seg.leg, tl);
+    return { type: seg.type, idx: seg.idx, tl, T, u, pos, look: lookOf(seg, u) };
+  };
+  return { total: t, dwell, evalAt };
+}
+/* TOURCAM-END */
+
+/* ============================================================
+   FILTRO MENU
+   ============================================================ */
+function getFilteredItems(filter) {
+  const items = [];
+  if (filter === 'all' || filter === 'zodiac') {
+    for (const key of ZODIAC_ORDER) if (CONSTELLATIONS[key]) items.push({ value: 'con:' + key, label: key, group: 'zodiac' });
+  }
+  if (filter === 'all' || filter === 'constellations') {
+    for (const key of Object.keys(CONSTELLATIONS)) if (!ZODIAC_ORDER.includes(key)) items.push({ value: 'con:' + key, label: key, group: 'con' });
+  }
+  if (filter === 'all' || filter === 'asterisms') {
+    for (const key of Object.keys(ASTERISMS)) items.push({ value: 'ast:' + key, label: key, group: 'ast' });
+  }
+  return items;
+}
+
+function rebuildConstellationSelect(filter) {
+  const sel = document.getElementById('constellation-select');
+  sel.innerHTML = '';
+  const items = getFilteredItems(filter);
+  if (filter === 'all') {
+    const groups = { zodiac: { label: '♈ Segni zodiacali', items: [] }, con: { label: '⭐ Altre costellazioni', items: [] }, ast: { label: '✦ Asterismi', items: [] } };
+    for (const item of items) groups[item.group].items.push(item);
+    for (const gk of ['zodiac', 'con', 'ast']) {
+      const g = groups[gk];
+      if (g.items.length === 0) continue;
+      const og = document.createElement('optgroup');
+      og.label = g.label;
+      for (const item of g.items) {
+        const opt = document.createElement('option');
+        opt.value = item.value; opt.textContent = item.label;
+        og.appendChild(opt);
+      }
+      sel.appendChild(og);
+    }
+  } else {
+    for (const item of items) {
+      const opt = document.createElement('option');
+      opt.value = item.value; opt.textContent = item.label;
+      sel.appendChild(opt);
+    }
+  }
+}
+
+function applyFilterAndRebuild() {
+  const filter = document.getElementById('filter-select').value;
+  rebuildConstellationSelect(filter);
+  const items = getFilteredItems(filter);
+  if (items.length > 0 && !items.some(item => item.value === activeValue)) {
+    activeValue = items[0].value;
+    visibleKeys.add(activeValue);
+  }
+  document.getElementById('constellation-select').value = activeValue;
+  rebuildLayersPanel();
+  rebuildScene();
+}
+
+/* ============================================================
+   PANNELLO LIVELLI
+   ============================================================ */
+function rebuildLayersPanel() {
+  const zEl = document.getElementById('layers-zodiac');
+  const cEl = document.getElementById('layers-con');
+  const aEl = document.getElementById('layers-ast');
+  zEl.innerHTML = ''; cEl.innerHTML = ''; aEl.innerHTML = '';
+  for (const key of ZODIAC_ORDER) if (CONSTELLATIONS[key]) zEl.appendChild(createLayerItem('con:' + key, key, false));
+  for (const key of Object.keys(CONSTELLATIONS)) if (!ZODIAC_ORDER.includes(key)) cEl.appendChild(createLayerItem('con:' + key, key, false));
+  for (const key of Object.keys(ASTERISMS)) aEl.appendChild(createLayerItem('ast:' + key, key, true));
+  document.getElementById('layers-count').textContent = `(${visibleKeys.size})`;
+}
+
+function createLayerItem(fullKey, label, isAsterism) {
+  const item = document.createElement('div');
+  item.className = 'layer-item';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = visibleKeys.has(fullKey);
+  cb.disabled = (fullKey === activeValue);
+  cb.addEventListener('change', () => {
+    if (fullKey === activeValue) { cb.checked = true; return; }
+    if (cb.checked) visibleKeys.add(fullKey); else visibleKeys.delete(fullKey);
+    document.getElementById('layers-count').textContent = `(${visibleKeys.size})`;
+    rebuildScene(false);
+  });
+  const swatch = document.createElement('span');
+  swatch.className = 'swatch';
+  swatch.style.background = '#' + getLayerColor(fullKey).toString(16).padStart(6, '0');
+  swatch.style.color = '#' + getLayerColor(fullKey).toString(16).padStart(6, '0');
+  const name = document.createElement('span');
+  name.className = 'lname';
+  name.textContent = label;
+  item.appendChild(cb); item.appendChild(swatch); item.appendChild(name);
+  if (fullKey === activeValue) {
+    const badge = document.createElement('span');
+    badge.className = 'badge-active';
+    badge.textContent = 'ATTIVA';
+    item.appendChild(badge);
+  }
+  item.addEventListener('click', e => {
+    if (e.target === cb || e.target === item.querySelector('.badge-active')) return;
+    if (fullKey === activeValue) return;
+    cb.checked = !cb.checked;
+    cb.dispatchEvent(new Event('change'));
+  });
+  return item;
+}
+
+/* ============================================================
+   INIZIALIZZAZIONE
+   ============================================================ */
+function init() {
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setScissorTest(false);
+  document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+  labelRenderer = new CSS2DRenderer();
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.domElement.style.position = 'absolute';
+  labelRenderer.domElement.style.top = '0';
+  labelRenderer.domElement.style.left = '0';
+  labelRenderer.domElement.style.pointerEvents = 'none';
+  document.getElementById('canvas-container').appendChild(labelRenderer.domElement);
+
+  scene2D = new THREE.Scene();
+  scene3D = new THREE.Scene();
+  scene2D.background = new THREE.Color(0x000006);
+  scene3D.background = new THREE.Color(0x000006);
+
+  camera3D = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 20000);
+  camera2D = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 20000);
+  cameraE = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 20000);
+
+  controls3D = new OrbitControls(camera3D, renderer.domElement);
+  controls3D.enableDamping = true;
+  controls3D.dampingFactor = 0.08;
+  controls3D.rotateSpeed = 0.8;
+
+  controls2D = new OrbitControls(camera2D, renderer.domElement);
+  controls2D.enableDamping = true;
+  controls2D.dampingFactor = 0.08;
+  controls2D.rotateSpeed = 0.8;
+  controls2D.enabled = false;
+
+  bgStars2D = createBgStars(); bgStars3D = createBgStars();
+  scene2D.add(bgStars2D); scene3D.add(bgStars3D);
+
+  milkyWay = createMilkyWay();
+  milkyWay.visible = false;
+  scene3D.add(milkyWay);
+
+  sunGroup = new THREE.Group();
+  const sunMesh = new THREE.Mesh(new THREE.SphereGeometry(1.6, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffdd44 }));
+  sunGroup.add(sunMesh);
+  sunGroup.add(makeLabel('☀ Sole', 'sun'));
+  scene3D.add(sunGroup);
+
+  ringsGroup = new THREE.Group();
+  ringsGroup.visible = false;
+  scene3D.add(ringsGroup);
+
+  tourHighlight = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeHighlightTexture(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
+  tourHighlight.visible = false;
+  scene3D.add(tourHighlight);
+
+  tourTrail = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffcc44, transparent: true, opacity: 0.6 }));
+  tourTrail.visible = false;
+  scene3D.add(tourTrail);
+
+  refs2D = buildRefs(R_SKY); refs3D = buildRefs(120);
+  Object.values(refs2D).forEach(g => scene2D.add(g)); Object.values(refs3D).forEach(g => scene3D.add(g));
+  group2D = new THREE.Group(); lineGroup2D = new THREE.Group(); labelGroup2D = new THREE.Group();
+  scene2D.add(group2D, lineGroup2D, labelGroup2D);
+  group3D = new THREE.Group(); lineGroup3D = new THREE.Group(); labelGroup3D = new THREE.Group();
+  scene3D.add(group3D, lineGroup3D, labelGroup3D);
+
+  // Listener costellazione
+  document.getElementById('constellation-select').addEventListener('change', () => {
+    activeValue = document.getElementById('constellation-select').value;
+    visibleKeys.add(activeValue);
+    rebuildLayersPanel();
+    rebuildScene();
+  });
+
+  // Listener filtro
+  document.getElementById('filter-select').addEventListener('change', applyFilterAndRebuild);
+
+  // Altri listener
+  document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+  const uiEl = document.getElementById('ui');
+  document.getElementById('ui-toggle').addEventListener('click', () => uiEl.classList.toggle('ui-hidden'));
+  if (window.innerWidth <= 700) uiEl.classList.add('ui-hidden');
+  document.getElementById('tour-btn').addEventListener('click', startTour);
+  document.getElementById('size-slider').addEventListener('input', e => {
+    starScale = parseFloat(e.target.value);
+    document.getElementById('size-value').textContent = starScale.toFixed(1) + '×';
+    applyStarScale();
+  });
+  document.getElementById('tour-cancel').addEventListener('click', endTour);
+  document.getElementById('tour-dist-slider').addEventListener('input', e => {
+    document.getElementById('tour-dist-value').textContent = +tourFactor().toPrecision(2) + '×';
+  });
+  document.getElementById('tour-rhythm-slider').addEventListener('input', e => {
+    document.getElementById('tour-rhythm-value').textContent = (+tourRhythm().toFixed(2)) + '×';
+  });
+  document.getElementById('rings-toggle').addEventListener('change', e => { ringsVisible = e.target.checked; ringsGroup.visible = ringsVisible; });
+  document.getElementById('milkyway-toggle').addEventListener('change', e => { milkyWayVisible = e.target.checked; milkyWay.visible = milkyWayVisible; });
+  document.getElementById('scale-toggle').addEventListener('change', rebuildScene);
+  ['grid-toggle', 'ecl-toggle', 'poles-toggle'].forEach(id => document.getElementById(id).addEventListener('change', applyRefVisibility));
+  document.getElementById('labels-toggle').addEventListener('change', () => applyLabelVisibility());
+  document.getElementById('lines-toggle').addEventListener('change', () => applyLineVisibility());
+  document.getElementById('cultural-select').addEventListener('change', updateCulturalInfo);
+  document.getElementById('reset-btn').addEventListener('click', () => rebuildScene());
+  document.getElementById('layers-toggle-btn').addEventListener('click', () => {
+    document.getElementById('layers-section').classList.toggle('collapsed');
+  });
+  document.getElementById('layers-reset').addEventListener('click', () => {
+    visibleKeys = new Set([activeValue]);
+    rebuildLayersPanel();
+    rebuildScene();
+  });
+  document.getElementById('info-close').addEventListener('click', () => {
+    document.getElementById('info-panel').classList.add('hidden');
+  });
+  renderer.domElement.addEventListener('click', onCanvasClick);
+  const cv = renderer.domElement;
+  const inLeft = e => currentMode === 'split' && e.clientX < window.innerWidth / 2;
+  const is2D = e => currentMode === 'earth' || inLeft(e);
+  cv.addEventListener('pointerdown', e => {
+    downX = e.clientX; downY = e.clientY;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 2 && is2D(e)) { const [p, q] = [...ptrs.values()]; pinchD = Math.hypot(p.x - q.x, p.y - q.y); drag2D = null; return; }
+    if (currentMode === 'split') controls3D.enabled = !inLeft(e);
+    if (!tourActive && is2D(e)) { drag2D = { x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); }
+  }, true);
+  cv.addEventListener('pointermove', e => {
+    if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 2 && is2D(e) && !tourActive) {
+      const [p, q] = [...ptrs.values()], d = Math.hypot(p.x - q.x, p.y - q.y);
+      if (pinchD > 0 && d > 0) { cameraE.fov = Math.max(3, Math.min(100, cameraE.fov * pinchD / d)); cameraE.updateProjectionMatrix(); }
+      pinchD = d; return;
+    }
+    if (currentMode === 'split' && !drag2D) controls3D.enabled = !tourActive && !inLeft(e);
+    if (!drag2D) return;
+    const k = cameraE.fov / window.innerHeight * Math.PI / 180;
+    view2D.yaw += (e.clientX - drag2D.x) * k;
+    view2D.pitch = Math.max(-1.5, Math.min(1.5, view2D.pitch + (e.clientY - drag2D.y) * k));
+    drag2D = { x: e.clientX, y: e.clientY };
+  });
+  const endDrag = e => { ptrs.delete(e.pointerId); drag2D = null; pinchD = 0; };
+  cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('wheel', e => {
+    if (tourActive || !is2D(e)) return;
+    e.preventDefault();
+    cameraE.fov = Math.max(3, Math.min(100, cameraE.fov * (e.deltaY > 0 ? 1.1 : 1 / 1.1)));
+    cameraE.updateProjectionMatrix();
+  }, { passive: false });
+  window.addEventListener('resize', onResize);
+
+  // Stato iniziale
+  const initialFilter = document.getElementById('filter-select').value;
+  rebuildConstellationSelect(initialFilter);
+  activeValue = 'con:Orsa Maggiore';
+  visibleKeys.add(activeValue);
+  document.getElementById('constellation-select').value = activeValue;
+  rebuildLayersPanel();
+  rebuildScene();
+  animate();
+}
+
+function clearGroup(g) {
+  while (g.children.length) {
+    const c = g.children[0]; g.remove(c);
+    c.traverse(o => { if (o.geometry && o.geometry !== STAR_GEOMETRY) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+  }
+}
+function updateAspects() {
+  const w = window.innerWidth, h = window.innerHeight;
+  const a = (currentMode === 'split' ? w / 2 : w) / h;
+  [camera3D, camera2D, cameraE].forEach(c => { c.aspect = a; c.updateProjectionMatrix(); });
+}
+function applyStarScale() {
+  [group2D, group3D].forEach(g => g.children.forEach(o => {
+    if (o.isMesh) o.scale.setScalar(o.userData.baseR * starScale);
+    else if (o.isSprite) o.scale.setScalar(o.userData.baseR * o.userData.glowK * starScale);
+  }));
+}
+function apply2DView() {
+  const y = view2D.yaw, p = view2D.pitch;
+  cameraE.position.set(0, 0, 0); cameraE.up.set(0, 1, 0);
+  cameraE.lookAt(Math.cos(p) * Math.cos(y) * 100, Math.sin(p) * 100, -Math.cos(p) * Math.sin(y) * 100);
+}
+function eclDir(lonDeg) {
+  const L = lonDeg * Math.PI / 180, e = 23.4393 * Math.PI / 180;
+  const x = Math.cos(L), y = Math.sin(L) * Math.cos(e), z = Math.sin(L) * Math.sin(e);
+  return raDecToDir(((Math.atan2(y, x) * 12 / Math.PI) + 24) % 24, Math.asin(z) * 180 / Math.PI);
+}
+function buildRefs(R) {
+  const refs = { grid: new THREE.Group(), ecl: new THREE.Group(), poles: new THREE.Group() };
+  const mat = (c, o) => new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false });
+  const line = (fn, n, c, o) => { const p = []; for (let i = 0; i <= n; i++) p.push(fn(i / n).multiplyScalar(R)); return new THREE.Line(new THREE.BufferGeometry().setFromPoints(p), mat(c, o)); };
+  const lab = (g, txt, dir, cls) => { const l = makeLabel(txt, cls || 'ref'); l.position.copy(dir.multiplyScalar(R)); g.add(l); };
+  [-60, -30, 0, 30, 60].forEach(d => {
+    refs.grid.add(line(u => raDecToDir(u * 24, d), 144, d === 0 ? 0x66ccff : 0x4a6aa8, d === 0 ? 0.6 : 0.3));
+    lab(refs.grid, d === 0 ? 'Equatore celeste' : (d > 0 ? '+' : '') + d + '°', raDecToDir(0.6, d));
+  });
+  for (let h = 0; h < 24; h += 2) {
+    refs.grid.add(line(u => raDecToDir(h, -90 + 180 * u), 72, 0x4a6aa8, 0.3));
+    lab(refs.grid, h + 'h', raDecToDir(h, 4));
+  }
+  refs.ecl.add(line(u => eclDir(u * 360), 180, 0xffb347, 0.75));
+  lab(refs.ecl, 'Eclittica', eclDir(45), 'ref ref-ecl');
+  [[0, '♈ Equinozio di primavera (punto vernale)'], [90, 'Solstizio d’estate'], [180, '♎ Equinozio d’autunno'], [270, 'Solstizio d’inverno']].forEach(([lon, txt]) => {
+    const dir = eclDir(lon); const m = new THREE.Mesh(STAR_GEOMETRY, new THREE.MeshBasicMaterial({ color: 0xffb347 }));
+    m.position.copy(dir.clone().multiplyScalar(R)); m.scale.setScalar(R * 0.012); refs.ecl.add(m);
+    lab(refs.ecl, txt, dir, 'ref ref-ecl');
+  });
+  refs.poles.add(line(u => new THREE.Vector3(0, -1 + 2 * u, 0), 2, 0x9ad0ff, 0.5));
+  [[1, 'Polo Nord celeste'], [-1, 'Polo Sud celeste']].forEach(([s, txt]) => {
+    const m = new THREE.Mesh(STAR_GEOMETRY, new THREE.MeshBasicMaterial({ color: 0x9ad0ff }));
+    m.position.set(0, s * R, 0); m.scale.setScalar(R * 0.012); refs.poles.add(m);
+    lab(refs.poles, txt, new THREE.Vector3(0, s, 0));
+  });
+  return refs;
+}
+function setRefVis(g, on, labelsOk) {
+  g.visible = on;
+  g.traverse(o => {
+    if (o.isCSS2DObject) { o.visible = on && labelsOk; if (o.element) o.element.style.display = (on && labelsOk) ? '' : 'none'; }
+    else o.visible = on;
+  });
+}
+function applyRefVisibility() {
+  const on = { grid: document.getElementById('grid-toggle').checked, ecl: document.getElementById('ecl-toggle').checked, poles: document.getElementById('poles-toggle').checked };
+  const show3 = currentMode === '3d' || currentMode === 'split', show2 = currentMode !== '3d';
+  const lab = currentMode !== 'split';
+  for (const k of Object.keys(on)) { setRefVis(refs3D[k], on[k] && show3, lab); setRefVis(refs2D[k], on[k] && show2, lab); }
+}
+function onResize() {
+  if (currentMode === 'split' && window.innerWidth <= 700) setMode('3d');
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  updateAspects();
+}
+
+function applyLabelVisibility() {
+  const show = document.getElementById('labels-toggle').checked && currentMode !== 'split';
+  labelGroup2D.visible = show; labelGroup3D.visible = show;
+  [labelGroup2D, labelGroup3D].forEach(g => g.traverse(o => {
+    if (o.isCSS2DObject) {
+      o.visible = show;
+      if (o.element) o.element.style.display = show ? '' : 'none';
+    }
+  }));
+}
+
+function applyLineVisibility() {
+  const v = document.getElementById('lines-toggle').checked;
+  lineGroup2D.visible = v; lineGroup3D.visible = v;
+}
+
+function setMode(mode) {
+  if (tourActive) return;
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  const split = mode === 'split';
+  document.getElementById('split-divider').classList.toggle('hidden', !split);
+  document.getElementById('split-labels').classList.toggle('hidden', !split);
+  controls3D.enabled = (mode === '3d');
+  controls2D.enabled = (mode === '2d');
+  rebuildScene();
+}
+
+/* ============================================================
+   COSTRUZIONE SCENA MULTI-LIVELLO
+   ============================================================ */
+function rebuildScene(resetView = true) {
+  const compressed = document.getElementById('scale-toggle').checked;
+  [group2D, lineGroup2D, labelGroup2D, group3D, lineGroup3D, labelGroup3D, ringsGroup].forEach(clearGroup);
+
+  const starMap = new Map();
+  const lineSegments = [];
+  const centerDir = new THREE.Vector3();
+  let maxDistAll = 0;
+
+  const orderedKeys = [activeValue, ...Array.from(visibleKeys).filter(k => k !== activeValue)];
+
+  for (const fullKey of orderedKeys) {
+    if (!visibleKeys.has(fullKey) && fullKey !== activeValue) continue;
+    const [type, key] = fullKey.split(':');
+    const data = type === 'ast' ? ASTERISMS[key] : CONSTELLATIONS[key];
+    if (!data) continue;
+    const isActive = (fullKey === activeValue);
+    const color = getLayerColor(fullKey);
+
+    for (const [id, s] of Object.entries(data.stars)) {
+      const posKey = `${s.ra.toFixed(5)}_${s.dec.toFixed(5)}`;
+      const dC = compressed ? Math.sqrt(s.dist) : s.dist;
+      if (dC > maxDistAll) maxDistAll = dC;
+      const dir = raDecToDir(s.ra, s.dec);
+      if (isActive) centerDir.add(dir);
+      if (starMap.has(posKey)) {
+        const ex = starMap.get(posKey);
+        if (isActive) ex.isActive = true;
+        ex.sources.push({ key, id, isAsterism: type === 'ast', fullKey });
+      } else {
+        starMap.set(posKey, { starData: s, isActive, sources: [{ key, id, isAsterism: type === 'ast', fullKey }], dir });
+      }
+    }
+    for (const [a, b] of (data.lines || [])) {
+      const sa = data.stars[a], sb = data.stars[b];
+      if (!sa || !sb) continue;
+      lineSegments.push({
+        dirA: raDecToDir(sa.ra, sa.dec), distA: compressed ? Math.sqrt(sa.dist) : sa.dist,
+        dirB: raDecToDir(sb.ra, sb.dec), distB: compressed ? Math.sqrt(sb.dist) : sb.dist,
+        color, isActive
+      });
+    }
+  }
+
+  if (centerDir.lengthSq() < 1e-6) centerDir.set(1, 0, 0);
+  centerDir.normalize();
+  const scale3D = maxDistAll > 0 ? 100 / maxDistAll : 1;
+  const points3D = [];
+
+  for (const entry of starMap.values()) {
+    const s = entry.starData;
+    const d = compressed ? Math.sqrt(s.dist) : s.dist;
+    const p3D = entry.dir.clone().multiplyScalar(d * scale3D);
+    const p2D = entry.dir.clone().multiplyScalar(R_SKY);
+    points3D.push(p3D);
+
+    const baseR = Math.max(0.8, 3.0 - 0.32 * s.mag);
+    const radius = entry.isActive ? baseR : baseR * 0.75;
+    const glowOp = entry.isActive ? 0.6 : 0.28;
+
+    const userData = {
+      isStar: true, starData: s, sources: entry.sources, isActive: entry.isActive,
+      primarySource: entry.sources.find(src => src.fullKey === activeValue) || entry.sources[0]
+    };
+
+    const m3 = new THREE.Mesh(STAR_GEOMETRY, new THREE.MeshBasicMaterial({ color: s.color }));
+    m3.position.copy(p3D); m3.scale.setScalar(radius); m3.userData = { ...userData, baseR: radius };
+    group3D.add(m3);
+    const g3 = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeGlowTexture(), color: s.color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: glowOp }));
+    g3.userData = { baseR: radius, glowK: entry.isActive ? 8 : 5 };
+    g3.position.copy(p3D); g3.scale.setScalar(radius * (entry.isActive ? 8 : 5));
+    group3D.add(g3);
+    const lbl3 = makeLabel(`${s.name}${entry.isActive ? `<span class="dist">${s.dist.toFixed(0)} a.l.</span>` : ''}`, entry.isActive ? '' : 'inactive');
+    lbl3.position.copy(p3D); lbl3.position.y += radius + 0.5;
+    labelGroup3D.add(lbl3);
+
+    const m2 = new THREE.Mesh(STAR_GEOMETRY, new THREE.MeshBasicMaterial({ color: s.color }));
+    m2.position.copy(p2D); m2.scale.setScalar(radius); m2.userData = { ...userData, baseR: radius };
+    group2D.add(m2);
+    const g2 = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeGlowTexture(), color: s.color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: glowOp }));
+    g2.userData = { baseR: radius, glowK: entry.isActive ? 8 : 5 };
+    g2.position.copy(p2D); g2.scale.setScalar(radius * (entry.isActive ? 8 : 5));
+    group2D.add(g2);
+    const lbl2 = makeLabel(s.name, entry.isActive ? '' : 'inactive');
+    lbl2.position.copy(p2D); lbl2.position.y += radius + 0.5;
+    labelGroup2D.add(lbl2);
+  }
+
+  for (const seg of lineSegments) {
+    const pA3 = seg.dirA.clone().multiplyScalar(seg.distA * scale3D);
+    const pB3 = seg.dirB.clone().multiplyScalar(seg.distB * scale3D);
+    const pA2 = seg.dirA.clone().multiplyScalar(R_SKY);
+    const pB2 = seg.dirB.clone().multiplyScalar(R_SKY);
+    const op = seg.isActive ? 0.55 : 0.22;
+    lineGroup3D.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([pA3, pB3]), new THREE.LineBasicMaterial({ color: seg.color, transparent: true, opacity: op })));
+    lineGroup2D.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([pA2, pB2]), new THREE.LineBasicMaterial({ color: seg.color, transparent: true, opacity: op })));
+  }
+
+  // Anelli distanza
+  [10, 50, 100, 500, 1000].forEach((dist, i) => {
+    const r = (compressed ? Math.sqrt(dist) : dist) * scale3D;
+    if (r < 1 || r > 500) return;
+    const colors = [0x55ff88, 0x66ccff, 0xffcc44, 0xff8844, 0xff4488];
+    ringsGroup.add(new THREE.Mesh(new THREE.SphereGeometry(r, 32, 16), new THREE.MeshBasicMaterial({ color: colors[i], wireframe: true, transparent: true, opacity: 0.12 })));
+    const lbl = makeLabel(`${dist} a.l.`, 'ring');
+    lbl.position.set(0, r, 0);
+    ringsGroup.add(lbl);
+  });
+  ringsGroup.visible = ringsVisible;
+
+  sunGroup.visible = (currentMode === '3d' || currentMode === 'split');
+  milkyWay.visible = milkyWayVisible;
+
+  if (resetView) {
+  // Camera 3D
+  const box = new THREE.Box3().setFromPoints(points3D);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z, 20);
+  controls3D.target.copy(center);
+  camera3D.position.copy(center).add(new THREE.Vector3(maxDim * 0.9, maxDim * 0.65, maxDim * 1.25));
+  camera3D.near = Math.max(maxDim / 1000, 0.05);
+  camera3D.far = Math.max(maxDim * 400, 10000);
+  camera3D.updateProjectionMatrix();
+  controls3D.minDistance = 1; controls3D.maxDistance = 20000;
+  controls3D.update();
+
+  // Camera 2D (orbita attorno alla sfera celeste)
+  camera2D.position.copy(centerDir).multiplyScalar(-5);
+  camera2D.fov = 50; camera2D.near = 1; camera2D.far = 8000;
+  camera2D.updateProjectionMatrix();
+  controls2D.target.copy(centerDir).multiplyScalar(R_SKY);
+  controls2D.minDistance = 50; controls2D.maxDistance = 4000;
+  controls2D.update();
+  // Camera Terra (camera nell'origine, look-around)
+  let maxAng = 0;
+  for (const en of starMap.values()) if (en.isActive) maxAng = Math.max(maxAng, Math.acos(Math.min(1, en.dir.dot(centerDir))));
+  view2D.yaw = Math.atan2(-centerDir.z, centerDir.x); view2D.pitch = Math.asin(centerDir.y);
+  cameraE.fov = Math.max(15, Math.min(100, maxAng * 2 * 57.3 * 1.5));
+  cameraE.near = 1; cameraE.far = 8000;
+  cameraE.updateProjectionMatrix();
+  }
+  updateAspects();
+  applyStarScale();
+
+  applyLabelVisibility();
+  applyLineVisibility();
+  applyRefVisibility();
+
+  // Descrizione
+  const [, key] = activeValue.split(':');
+  const isAst = activeValue.startsWith('ast:');
+  const isZod = !isAst && ZODIAC_ORDER.includes(key);
+  const data = isAst ? ASTERISMS[key] : CONSTELLATIONS[key];
+  const modeClass = (currentMode === '2d' || currentMode === 'earth') ? 'tag-2d' : (currentMode === 'split' ? 'tag-split' : 'tag-3d');
+  const modeText = currentMode === '2d' ? '📸 2D' : currentMode === 'earth' ? '🌍 DALLA TERRA' : (currentMode === 'split' ? '⇔ CONFRONTO' : '🌐 3D');
+  const typeClass = isAst ? 'tag-ast' : (isZod ? 'tag-zod' : 'tag-con');
+  const typeText = isAst ? '✦ ASTERISMO' : (isZod ? '♈ ZODIACO' : '⭐ COSTELLAZIONE');
+  const extra = visibleKeys.size > 1 ? ` · <span style="color:#6b8fff">${visibleKeys.size} livelli</span>` : '';
+  document.getElementById('desc').innerHTML = `<span class="tag ${modeClass}">${modeText}</span><span class="tag ${typeClass}">${typeText}</span>${extra}<br>${data ? data.desc : ''}`;
+
+  updateCulturalInfo();
+}
+
+function updateCulturalInfo() {
+  const el = document.getElementById('cultural-info');
+  const mode = document.getElementById('cultural-select').value;
+  if (mode === 'modern') { el.classList.add('hidden'); return; }
+  const [, key] = activeValue.split(':');
+  const info = CULTURAL_INFO[key];
+  if (!info || !info[mode]) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  const labels = { chinese: '🏮 Cina', arabic: '🕌 Mondo arabo', indigenous: '🪶 Culture indigene' };
+  el.innerHTML = `<strong>${labels[mode] || mode}</strong><br>${info[mode]}`;
+}
+
+/* ============================================================
+   CLICK SU STELLA
+   ============================================================ */
+function onCanvasClick(event) {
+  if (event.target !== renderer.domElement || tourActive || Math.hypot(event.clientX - downX, event.clientY - downY) > 5) return;
+  let scene, cam, mouseX = event.clientX;
+  if (currentMode === '3d') { scene = scene3D; cam = camera3D; }
+  else if (currentMode === '2d' || currentMode === 'earth') { scene = scene2D; cam = currentMode === 'earth' ? cameraE : camera2D; }
+  else if (currentMode === 'split') {
+    const left = event.clientX < window.innerWidth / 2;
+    scene = left ? scene2D : scene3D; cam = left ? cameraE : camera3D;
+    mouseX = left ? event.clientX : event.clientX - window.innerWidth / 2;
+  }
+  const halfW = currentMode === 'split' ? window.innerWidth / 2 : window.innerWidth;
+  const H = window.innerHeight, v = new THREE.Vector3();
+  const maxPx = event.pointerType === 'touch' ? 34 : 22;
+  cam.updateMatrixWorld();
+  let best = null, bestD = maxPx;
+  scene.traverse(o => {
+    if (!o.userData || !o.userData.isStar || !o.visible) return;
+    v.copy(o.position).project(cam);
+    if (v.z < -1 || v.z > 1) return;
+    const d = Math.hypot((v.x + 1) / 2 * halfW - mouseX, (1 - v.y) / 2 * H - event.clientY);
+    if (d < bestD) { bestD = d; best = o; }
+  });
+  if (best) showStarInfo(best.userData);
+}
+
+function showStarInfo(userData) {
+  const { starData, sources } = userData;
+  const bn = starData.name.split(' (')[0]; const baseName = NAME_ALIAS[bn] || bn;
+  const details = STAR_DETAILS[baseName] || {};
+  const memberships = sources.map(s => {
+    const icon = s.isAsterism ? '✦' : (ZODIAC_ORDER.includes(s.key) ? '♈' : '⭐');
+    const isAct = s.fullKey === activeValue;
+    return `<span style="color:${isAct ? '#ffcc44' : '#a8b8d8'}">${icon} ${s.key}${isAct ? ' · attiva' : ''}</span>`;
+  }).join('<br>');
+  let html = `<h2>${starData.name}</h2><div class="info-sub">Appartiene a:<br>${memberships}</div>`;
+  html += `<div class="info-row"><span>Distanza</span><span>${starData.dist.toFixed(1)} a.l.</span></div>`;
+  html += `<div class="info-row"><span>Magnitudine</span><span>${starData.mag}</span></div>`;
+  const spT = details.spectral || starData.sp;
+  if (spT) html += `<div class="info-row"><span>Tipo spettrale</span><span>${spT}</span></div>`;
+  if (starData.M !== undefined) html += `<div class="info-row"><span>Magnitudine assoluta</span><span>${starData.M}</span></div>`;
+  if (details.temp) html += `<div class="info-row"><span>Temperatura</span><span>${details.temp.toLocaleString('it-IT')} K</span></div>`;
+  if (details.lum) html += `<div class="info-row"><span>Luminosità</span><span>${details.lum.toLocaleString('it-IT')} × Sole</span></div>`;
+  if (details.radius) html += `<div class="info-row"><span>Raggio</span><span>${details.radius.toLocaleString('it-IT')} × Sole</span></div>`;
+  if (details.mass) html += `<div class="info-row"><span>Massa</span><span>${details.mass} × Sole</span></div>`;
+  if (details.curiosity) html += `<div class="curiosity">💡 ${details.curiosity}</div>`;
+  else html += `<div class="curiosity">💡 Dati fisici dettagliati non disponibili.</div>`;
+  if (starData.hip) html += `<div class="info-sub" style="margin-top:10px;font-size:10.5px;opacity:.7">HIP ${starData.hip} · dati: catalogo HYG v4.1 (Hipparcos/Gaia), epoca J2000.${starData.dist > 300 ? ' Distanza molto incerta oltre ~300 a.l.' : ''}</div>`;
+  document.getElementById('info-content').innerHTML = html;
+  document.getElementById('info-panel').classList.remove('hidden');
+}
+
+/* ============================================================
+   TOUR
+   ============================================================ */
+function startTour() {
+  if (tourActive) return;
+  const [type, key] = activeValue.split(':');
+  const data = type === 'ast' ? ASTERISMS[key] : CONSTELLATIONS[key];
+  if (!data) return;
+
+  if (currentMode !== '3d') {
+    currentMode = '3d';
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === '3d'));
+    document.getElementById('split-divider').classList.add('hidden');
+    document.getElementById('split-labels').classList.add('hidden');
+    controls3D.enabled = true; controls2D.enabled = false;
+    rebuildScene();
+  }
+
+  const compressed = document.getElementById('scale-toggle').checked;
+  const factor = tourFactor(), rhythm = tourRhythm();
+
+  let maxD = 0;
+  for (const s of Object.values(data.stars)) {
+    const d = compressed ? Math.sqrt(s.dist) : s.dist;
+    if (d > maxD) maxD = d;
+  }
+  let maxAll = maxD;
+  for (const fk of [...visibleKeys, activeValue]) {
+    const [tp, kk] = fk.split(':'); const dd = (tp === 'ast' ? ASTERISMS : CONSTELLATIONS)[kk];
+    if (dd) for (const s of Object.values(dd.stars)) maxAll = Math.max(maxAll, compressed ? Math.sqrt(s.dist) : s.dist);
+  }
+  const scale3D = 100 / maxAll;
+
+  const path = buildTourPath(data);
+  const positions = path.map(id => {
+    const s = data.stars[id];
+    const d = compressed ? Math.sqrt(s.dist) : s.dist;
+    return raDecToDir(s.ra, s.dec).multiplyScalar(d * scale3D);
+  });
+
+  const box = new THREE.Box3().setFromPoints(positions);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z, 20);
+
+  // raggio reale delle stelle del percorso (stessa formula usata per disegnarle)
+  const radii = path.map(id => Math.max(0.8, 3.0 - 0.32 * data.stars[id].mag) * starScale);
+  // tutte le stelle della scena sono ostacoli da non attraversare
+  const obstacles = [];
+  group3D.children.forEach(o => { if (o.isMesh && o.userData && o.userData.isStar) obstacles.push({ pos: o.position.clone(), r: o.scale.x }); });
+
+  const plan = buildTourCam(positions, radii, center, maxDim, factor, rhythm, obstacles);
+
+  tourState = {
+    plan, path, data, totalStars: positions.length, positions, radii, center, maxDim,
+    clock: 0, last: performance.now(), look: null, viewX: 0, viewY: 0, textKey: ''
+  };
+
+  if (window.innerWidth <= 700) document.getElementById('ui').classList.add('ui-hidden');
+  tourActive = true;
+  controls3D.enabled = false; controls2D.enabled = false;
+  ['size-slider', 'tour-dist-slider', 'tour-rhythm-slider'].forEach(id => document.getElementById(id).disabled = true);
+  camera3D.near = Math.max(0.02, 0.25 * Math.min(...radii));
+  camera3D.far = 20000;
+  camera3D.updateProjectionMatrix();
+  tourHighlight.visible = true; tourHighlight.material.opacity = 0;
+
+  const compass = document.getElementById('tour-compass');
+  compass.innerHTML = '';
+  path.forEach((id, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot'; d.dataset.index = i; d.title = data.stars[id].name;
+    compass.appendChild(d);
+  });
+  compass.classList.remove('hidden');
+
+  tourTrail.visible = false;
+  tourTrail.geometry.dispose();
+  tourTrail.geometry = new THREE.BufferGeometry();
+
+  document.getElementById('tour-overlay').classList.remove('hidden');
+  document.getElementById('tour-text').style.opacity = 0;
+  setTourText('');
+}
+
+function endTour() {
+  if (!tourActive) return;
+  tourActive = false; tourState = null;
+  controls3D.enabled = (currentMode === '3d');
+  controls2D.enabled = (currentMode === '2d');
+  tourHighlight.visible = false; tourTrail.visible = false;
+  ['size-slider', 'tour-dist-slider', 'tour-rhythm-slider'].forEach(id => document.getElementById(id).disabled = false);
+  camera3D.clearViewOffset();
+  camera3D.near = 0.1; camera3D.far = 20000; camera3D.updateProjectionMatrix();
+  document.getElementById('tour-text').style.opacity = 1;
+  document.getElementById('tour-overlay').classList.add('hidden');
+  document.getElementById('tour-compass').classList.add('hidden');
+  rebuildScene();
+}
+
+function setTourText(t) { const el = document.getElementById('tour-text'); if (el.innerHTML !== t) el.innerHTML = t; }
+
+function updateTourCompass(idx) {
+  document.querySelectorAll('#tour-compass .dot').forEach((d, i) => {
+    d.classList.remove('current', 'visited');
+    if (i < idx) d.classList.add('visited'); else if (i === idx) d.classList.add('current');
+  });
+}
+
+function updateTour(now) {
+  if (!tourActive || !tourState) return;
+  const ts = tourState;
+  const dt = Math.max(0, Math.min(0.1, (now - ts.last) / 1000));
+  ts.last = now; ts.clock += dt;
+  if (ts.clock >= ts.plan.total) { endTour(); return; }
+
+  const { path, data, totalStars } = ts;
+  const st = ts.plan.evalAt(ts.clock);
+
+  // sguardo con inerzia (smorzamento esponenziale)
+  if (!ts.look) ts.look = st.look.clone();
+  else ts.look.lerp(st.look, 1 - Math.exp(-dt / 0.45));
+
+  // spazio per i pannelli: stella leggermente sopra il centro e a destra del pannello comandi
+  const w = window.innerWidth, h = window.innerHeight;
+  const uiEl = document.getElementById('ui');
+  const uiOn = w > 700 && uiEl && !uiEl.classList.contains('ui-hidden');
+  const tx = uiOn ? (uiEl.getBoundingClientRect().width + 16) / 2 : 0, ty = h * 0.06;
+  const k = 1 - Math.exp(-dt / 0.4);
+  ts.viewX += (tx - ts.viewX) * k; ts.viewY += (ty - ts.viewY) * k;
+  camera3D.setViewOffset(w, h, -ts.viewX, ts.viewY, w, h);
+
+  camera3D.up.set(0, 1, 0);
+  camera3D.position.copy(st.pos);
+  camera3D.lookAt(ts.look);
+
+  // testi, dissolvenze e stella evidenziata
+  const star = i => data.stars[path[i]];
+  const fade = (tl, T, f) => tcSmooth(tl / f) * tcSmooth((T - tl) / f);
+  let key, html, alpha, hw = 0, focus = 0, compassIdx = 0;
+  if (st.type === 'intro') {
+    const f = star(0);
+    key = 'intro'; alpha = fade(st.tl, st.T, 1.6); focus = 0; compassIdx = 0;
+    html = `🚀 <strong>In avvicinamento</strong><br>Prima tappa: <b>${f.name}</b> (${f.dist.toFixed(1)} a.l.)`;
+  } else if (st.type === 'dwell') {
+    const i = st.idx, c = star(i), n = i < totalStars - 1 ? star(i + 1) : null;
+    key = 'd' + i; alpha = tcSmooth((st.tl - 0.5) / 2.0) * tcSmooth((st.T - 0.5 - st.tl) / 2.0); hw = alpha; focus = i; compassIdx = i;
+    html = `⭐ <strong>${i + 1}/${totalStars} — ${c.name}</strong><br>${c.dist.toFixed(1)} a.l.`
+      + (c.mag !== undefined ? ` · mag ${c.mag}` : '') + (c.sp ? ` · tipo ${c.sp}` : '') + (n ? ` · poi ${n.name}` : '');
+  } else if (st.type === 'transfer') {
+    const i = st.idx, c = star(i), n = star(i + 1);
+    key = 't' + i; focus = i; compassIdx = st.u < 0.5 ? i : i + 1;
+    alpha = 0.6 * tcSmooth((st.u - 0.15) / 0.2) * tcSmooth((0.85 - st.u) / 0.2);
+    html = `🚀 <strong>Verso ${n.name}</strong><br>da ${c.name} · ${n.dist.toFixed(1)} a.l.`;
+  } else {
+    key = 'outro'; alpha = fade(st.tl, st.T, 2.0); focus = totalStars - 1; compassIdx = totalStars - 1;
+    html = `🌌 <strong>Fine del viaggio</strong><br>Hai attraversato tutta la costellazione.`;
+  }
+  if (ts.textKey !== key) { ts.textKey = key; setTourText(html); }
+  document.getElementById('tour-text').style.opacity = alpha.toFixed(3);
+  updateTourCompass(compassIdx);
+
+  const pulse = 0.5 + 0.5 * Math.sin(now * 0.0018);
+  tourHighlight.position.copy(ts.positions[focus]);
+  tourHighlight.scale.setScalar(ts.radii[focus] * 5.0 * (0.97 + 0.06 * pulse));
+  tourHighlight.material.opacity = hw * (0.35 + 0.2 * pulse);
+
+  // gli aloni (glow) si attenuano quando la camera e' vicina, cosi' non coprono mai la stella
+  group3D.children.forEach(o => {
+    if (!o.isSprite) return;
+    if (o.userData.op0 === undefined) o.userData.op0 = o.material.opacity;
+    const ratio = st.pos.distanceTo(o.position) / (o.scale.x * 0.5);
+    o.material.opacity = o.userData.op0 * tcSmooth((ratio - 0.5) / 1.5);
+  });
+}
+
+/* ============================================================
+   LOOP RENDER
+   ============================================================ */
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  if (tourActive) updateTour(now);
+  else {
+    if (currentMode === '3d' || currentMode === 'split') controls3D.update();
+    if (currentMode === 'earth' || currentMode === 'split') apply2DView();
+    if (currentMode === '2d') controls2D.update();
+  }
+  if (currentMode === '3d') {
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+    renderer.render(scene3D, camera3D);
+    labelRenderer.render(scene3D, camera3D);
+  } else if (currentMode === '2d' || currentMode === 'earth') {
+    const c2 = currentMode === 'earth' ? cameraE : camera2D;
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+    renderer.render(scene2D, c2);
+    labelRenderer.render(scene2D, c2);
+  } else if (currentMode === 'split') {
+    const w = window.innerWidth, h = window.innerHeight, hw = w / 2;
+    renderer.setScissorTest(true);
+    renderer.setViewport(0, 0, hw, h); renderer.setScissor(0, 0, hw, h);
+    renderer.render(scene2D, cameraE);
+    renderer.setViewport(hw, 0, hw, h); renderer.setScissor(hw, 0, hw, h);
+    renderer.render(scene3D, camera3D);
+    renderer.setScissorTest(false);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
